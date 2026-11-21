@@ -158,6 +158,8 @@ def load_metadata(raw: Path) -> tuple[pd.DataFrame, list[Path]]:
     if not frames:
         return pd.DataFrame(columns=["song_id", "artist_raw", "title", "genre", "meta_year"]), files
     meta = pd.concat(frames, ignore_index=True).drop_duplicates("song_id", keep="first")
+    for c in ("artist_raw", "title", "genre"):
+        meta[c] = meta[c].astype("string").str.strip()
     return meta, files
 
 
@@ -189,7 +191,8 @@ def load_raters(files: list[Path]) -> pd.DataFrame:
 SHRINK = 5.0   # pseudo-ratings pulling rater effects towards 0
 
 
-def adjust_raters(rr: pd.DataFrame, scale: bool, iters: int = 20) -> pd.DataFrame:
+def adjust_raters(rr: pd.DataFrame, scale: bool, iters: int = 20,
+                  fit_clips: set | None = None) -> pd.DataFrame:
     """Remove each rater's additive tendency (and optionally scale width).
 
     Fits rating = clip_effect + rater_effect by alternating means, with the
@@ -199,23 +202,27 @@ def adjust_raters(rr: pd.DataFrame, scale: bool, iters: int = 20) -> pd.DataFram
     by the pooled sd so units stay comparable.
     """
     out = rr.copy()
+    fit = rr if fit_clips is None else rr[rr["song_id"].isin(fit_clips)]
     for d in "VA":
-        y = rr[d].to_numpy(float)
-        clip = rr["song_id"].to_numpy()
-        rater = rr["worker"].astype(str).to_numpy()
+        y = fit[d].to_numpy(float)
+        clip = fit["song_id"].to_numpy()
+        rater = fit["worker"].astype(str).to_numpy()
         b = pd.Series(0.0, index=pd.unique(rater))
         for _ in range(iters):
             c = pd.Series(y - b.reindex(rater).to_numpy()).groupby(clip).transform("mean").to_numpy()
             res = pd.Series(y - c).groupby(rater)
             b = res.sum() / (res.size() + SHRINK)
-        adj = y - b.reindex(rater).to_numpy()
+        e = y - b.reindex(rater).to_numpy()
+        e = e - pd.Series(e).groupby(clip).transform("mean").to_numpy()
+        pooled = e.std()
+        g = pd.Series(e ** 2).groupby(rater)
+        sd_r = np.sqrt((g.sum() + SHRINK * pooled ** 2) / (g.size() + SHRINK))
+        # apply to every rating; raters unseen in the fit set get no correction
+        r_all = rr["worker"].astype(str)
+        adj = rr[d].to_numpy(float) - r_all.map(b).fillna(0.0).to_numpy()
         if scale:
-            c = pd.Series(adj).groupby(clip).transform("mean").to_numpy()
-            e = adj - c
-            pooled = e.std()
-            g = pd.Series(e ** 2).groupby(rater)
-            sd_r = np.sqrt((g.sum() + SHRINK * pooled ** 2) / (g.size() + SHRINK))
-            adj = c + e / sd_r.reindex(rater).to_numpy() * pooled
+            c = pd.Series(adj).groupby(rr["song_id"].to_numpy()).transform("mean").to_numpy()
+            adj = c + (adj - c) / r_all.map(sd_r).fillna(pooled).to_numpy() * pooled
         out[d] = adj
     return out
 
@@ -297,6 +304,23 @@ def rater_analysis(rr: pd.DataFrame, kept: pd.DataFrame, problems: list[str],
         rel = split_half(df, n_splits, seed)
         out.append(f"| {name} | " + " | ".join(f"{rel[k]:.3f}" for k in
                    ["mean_V", "mean_A", "sd_V", "sd_A", "mad_V", "mad_A"]) + " |")
+    # cross-fitted check: rater effects estimated on one half of the clips,
+    # reliability measured on the other half (rules out self-fitting)
+    rng = np.random.default_rng(seed)
+    ids = rr["song_id"].unique()
+    cf = []
+    for rep in range(3):
+        perm = rng.permutation(ids)
+        halves = (set(perm[: len(ids) // 2]), set(perm[len(ids) // 2:]))
+        for fit_set, eval_set in (halves, halves[::-1]):
+            adj = adjust_raters(rr, scale=True, fit_clips=fit_set)
+            cf.append(split_half(adj[adj["song_id"].isin(eval_set)], 100, seed + rep))
+    cfm = pd.DataFrame(cf).mean()
+    out.append(f"| bias + scale, cross-fitted (6 half-swaps) | " + " | ".join(
+        f"{cfm[k]:.3f}" for k in ["mean_V", "mean_A", "sd_V", "sd_A", "mad_V", "mad_A"]) + " |")
+    out.append("")
+    out.append("Ceiling for any correlation with s = sqrt(reliability): raw s about 0.2, "
+               "rater-adjusted s about 0.4 (decision Q6c: report both, raw s primary).")
 
     # analytic check of the sd reliability: how much of the between-clip
     # variance of s is just sampling noise of an n-rater sd (~ s^2 / (2(n-1)))?
@@ -439,6 +463,12 @@ def run(raw: Path, out_md: Path, out_labels: Path) -> int:
                 kept[f"s_{d}_raw"] = s_r.where(s_r.notna(), kept[f"s_{d}_raw"])
             lines.append("- s_V, s_A in labels.csv are per-rater sds (ddof=1); the averaged-file "
                          "values are kept as s_V_file, s_A_file")
+            adj = adjust_raters(rr, scale=True)
+            for d in "VA":
+                kept[f"s_{d}_adj_raw"] = sid.map(adj.groupby("song_id")[d].std(ddof=1))
+            lines.append("- s_V_adj, s_A_adj: per-clip sd after removing rater tendency and scale "
+                         "(fitted on all clips; models that use it as a target must refit the "
+                         "rater effects on training folds only)")
     else:
         lines.append("- **per-rater static ratings: not found.** n per clip cannot be read "
                      "from the averaged files. The framework uses n = 10 (minimum stated "
@@ -485,9 +515,11 @@ def run(raw: Path, out_md: Path, out_labels: Path) -> int:
     for d in "VA":
         kept[f"mu_{d}"] = (kept[f"mu_{d}_raw"] - 5) / 4
         kept[f"s_{d}"] = kept[f"s_{d}_raw"] / 4
+        if f"s_{d}_adj_raw" in kept.columns:
+            kept[f"s_{d}_adj"] = kept[f"s_{d}_adj_raw"] / 4
     cols = ["song_id", "batch", "n_raters", "mu_V", "s_V", "mu_A", "s_A",
             "mu_V_raw", "s_V_raw", "mu_A_raw", "s_A_raw",
-            *[c for c in ("s_V_file", "s_A_file") if c in kept.columns],
+            *[c for c in ("s_V_file", "s_A_file", "s_V_adj", "s_A_adj") if c in kept.columns],
             "artist_raw", "artist_norm", "title", "genre", "has_audio", "has_features"]
     out_labels.parent.mkdir(parents=True, exist_ok=True)
     kept[cols].sort_values("song_id").to_csv(out_labels, index=False)

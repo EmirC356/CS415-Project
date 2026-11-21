@@ -1,6 +1,6 @@
 # CS415 Group 21 · Araştırma çerçevesi ve iş bölümü
 
-**Sürüm 2 · 18 Kasım 2026.** Hocanın proposal feedback'ine göre güncellendi; gerekçeler 04_Feedback_Uyum.md (Can'ın planlama klasöründe) §3–4'te.
+**Sürüm 2.1 · 21 Kasım 2026.** Sürüm 2 (18 Kasım) hocanın feedback'ine göre güncellenmişti; gerekçeler 04_Feedback_Uyum.md (Can'ın planlama klasöründe) §3–4'te. Sürüm 2.1, gerçek veri denetimine göre güncellendi; gerekçeler 02 Tur 10'da.
 **Durum:** Grup onayı bekliyor. Progress report teslimi **22 Kasım** olduğu için uygulama hemen başlıyor (Can'ın kararı, 2026-11-18).
 
 **Dayanak belgeler:**
@@ -29,7 +29,7 @@ Bunun dışındaki her şey ikincil ya da rapordan sonraya bırakılıyor.
 **σ'nın tanımı (raporda ve kodda bu cümle aynen kullanılır):**
 > "σ, ortalama puanı tahmin eden modelin öngörü hatasının tahminidir. İçinde modelin yaklaşım hatası ve ortalama almadan kalan gürültü (≈ s²/n) bulunur. Bireysel dinleyicilerin yayılımı değildir. Tek bir ağın σ'sı epistemik belirsizliği kapsamaz; onun için seed ensemble'ının yayılımına bakılır."
 
-**Özgün katkı (rapordan sonra):** Watcharasupat'ın açık bıraktığı soru: "Donuk omurga anlaşmazlık bilgisini kaybetti mi?" (H2b). Kendimizi açıkça "kısmi replikasyon ve uzatma" olarak konumluyoruz.
+**Özgün katkı:** Watcharasupat σ ile dinleyici anlaşmazlığı arasında ≈ 0 ilişki buldu ama nedenini açıklamadı. Biz şunu gösteriyoruz: DEAM'de klip düzeyindeki anlaşmazlık (s), 10 dinleyiciyle neredeyse ölçülemiyor. Bölünmüş yarı güvenilirliği ham haliyle 0,04 / −0,01. Dinleyici eğilimi ve ölçek genişliği çıkarılınca 0,19 / 0,15'e çıkıyor (H2b, 02 Tur 10). Kendimizi açıkça "kısmi replikasyon ve uzatma" olarak konumluyoruz.
 
 **Kapsam dışı:** klip içi dinamik tahmin, 2015 seti. Bireysel dinleyici dağılımının modellenmesi (O4) için bkz. §3.
 
@@ -45,7 +45,8 @@ Bunun dışındaki her şey ikincil ya da rapordan sonraya bırakılıyor.
 |---|---|---|---|
 | **H1** | Önceden eğitilmiş temsil (MERT), aynı başlıkla openSMILE'ı geçer. MERT, PANNs'ı geçer (ikincil). | C2 (birincil), C2b, C3 (ikincil), C1 (sağlamlık) | C2 progress report'ta; C2b ve C3 sonra |
 | **H2a** | Heteroskedastik başlığın σ'sı kalibredir, gerçek hatayla sıralanır ve sabit σ'dan iyidir. Bu, σ'nın modelin kendi hatasının tahmini olarak işlediği anlamına gelir. | C5, C7 (birincil), C4 (ikincil) ve §4.3'teki betimsel analizler | İlk sonuçlar progress report'ta |
-| **H2b** | Donuk temsilde, μ'nün açıkladığından fazla ve doğrusal yolla çıkarılabilir anlaşmazlık (s) bilgisi vardır. | C6a, C6b | Rapordan sonra |
+| **H2b** | **Birincil:** Klip düzeyindeki anlaşmazlık (s) ne kadar ölçülebilir? Ham ve dinleyici eğilimi düzeltilmiş güvenilirlik ile tavanlar raporlanır. **İkincil:** Donuk temsil, düzeltilmiş s'yi μ'nün ötesinde açıklıyor mu? Sonuç tavana oranlanarak yorumlanır. | Güvenilirlik (yapıldı); C6a, C6b (ikincil) | Güvenilirlik progress report'ta, sonda sonra |
+| **H2c** | Bireysel puanlarla eğitilen başlığın σ_dinleyici çıktısı, ortalama puanla eğitilen başlığın σ_ortalama çıktısından farklı bir şey ölçer. | Betimsel: σ_dinleyici ile σ_ortalama karşılaştırması, s ile ilişkisi | Rapordan sonra |
 
 ## 3. Veri
 
@@ -54,10 +55,11 @@ Bunun dışındaki her şey ikincil ya da rapordan sonraya bırakılıyor.
   - Ölçekleme: μ → (μ − 5)/4, s → s/4.
   - Lisans CC BY-NC.
 - **Çıkarılan:** 2015 setinin 58 tam şarkısı (S9).
-- **Kılavuzdan doğrulananlar (2026-11-18):**
-  - Dinamik etiketler için dinleyici başına ham eğriler var.
-  - Metadata başlık, tür ve sanatçı içeriyor.
-  - Statik bireysel puanlardan **söz edilmiyor**.
+- **Veri denetimi sonucu (2026-11-21, `data/audit/audit_report.md`):**
+  - Dinleyici başına statik puanlar var: klip başına 10–20 dinleyici, toplam 187 kişi.
+  - 898 sanatçı, sanatçı başına en çok 23 şarkı. 68 sanatçı iki yılda farklı yazımla geçiyor; normalizasyon zorunlu.
+  - Ortalama puanın güvenilirliği 0,80 / 0,85; bu aynı zamanda R² tavanı. s'nin güvenilirliği ham 0,04 / −0,01, düzeltilmiş 0,19 / 0,15.
+  - Etiket kaynağı (Q3c): μ averaged dosyadan alınır; 1968 arousal dinleyici ortalamasıyla düzeltildi. s ve n dinleyici puanlarından, ddof = 1 ile.
 - **Veri denetimi** (betikle; raporda bölüm olarak; Q3):
   - Klip sayısı ve μ, s aralıkları; (x − 5)/4 dönüşümünün tutarlılığı; eksik değerler.
   - Klip başına dinleyici sayısı n. s/√n hesabı için gerekli.
@@ -65,10 +67,7 @@ Bunun dışındaki her şey ikincil ya da rapordan sonraya bırakılıyor.
   - Sanatçı adlarının normalizasyonu ve sanatçı başına şarkı sayısı.
   - 2013 ve 2014 grupları ayrı bir değişken olarak işaretlenir.
   - Statik bireysel puan dosyası var mı (evet/hayır)?
-- **Bireysel puanlar (Q9):**
-  - **Varsa:** rapordan sonra split-half güvenilirliğiyle gürültü tavanı hesaplanır. Dağılım modellemesi (O4) ek hedef olur.
-  - **Yoksa:** analitik tavan R²_max ≈ 1 − ort(s²/n) / Var(μ) verilir. Raporda (μ, s) üzerinde Gauss–Gauss KL ya da W2 kayıplı bir dağılım başlığı, çalıştırılmamış bir seçenek olarak anılır.
-  - Dinamik ham eğrilerden türetilen dinleyici ortalamaları yalnızca betimsel kullanılır. Bunun sınırı, eğrilerin yalnızca 15–45 sn aralığını kapsaması.
+- **Bireysel puanlar:** Gürültü tavanı hesaplandı (yukarıda). Dağılım modellemesi H2c olarak rapordan sonra yapılır (Q5b).
 - **Sanatçı alanı yoksa ya da kullanılamazsa:** şarkı kimliğine göre gruplanır ve bu, sapma olarak raporlanır.
 
 ## 4. Değerlendirme protokolü
@@ -105,7 +104,7 @@ Bunun dışındaki her şey ikincil ya da rapordan sonraya bırakılıyor.
 | z-skorları | z = (y − μ̂)/σ̂ için ortalama, varyans ve kuyruk histogramı |
 | Güvenilirlik diyagramı ve ENCE | Levi ve ark. 2022. Birleşik OOF üzerinde, eşit sayılı kutular ve bootstrap CI. Mükemmel kalibre simülasyonundan bir referans değer verilir. |
 | ρ(σ, \|e\|) | Spearman. Tavanı simülasyonla verilir: e ~ N(0, σ̂²). Ayrıca μ̂'nün merkeze uzaklığı kontrol edilerek kısmi ρ. |
-| ρ(σ, s) | Betimsel. Ham değer ve esnek biçimde μ ile μ̂ kontrol edilmiş kısmi Spearman. Ayrıca ρ(\|e\|, s), kısmi ρ(σ, s \| \|e\|) ve σ ile s/√n ilişkisi. |
+| ρ(σ, s) | Betimsel. **Ham s (birincil) ve düzeltilmiş s ile**; her birinin yanına tavanı (√güvenilirlik ≈ 0,2 ve ≈ 0,4) yazılır. Ham değer ve esnek biçimde μ ile μ̂ kontrol edilmiş kısmi Spearman. Ayrıca ρ(\|e\|, s), kısmi ρ(σ, s \| \|e\|) ve σ ile s/√n ilişkisi. |
 | σ ayrıştırması | σ̂² üzerine betimsel regresyon: s²/n (etiket gürültüsü), seed ensemble varyansı (epistemik) ve \|μ̂\| (merkezden uzaklık). Hocanın "σ tam olarak neyi temsil ediyor" sorusuna doğrudan cevap. |
 | AURC | C7 için |
 
@@ -163,7 +162,19 @@ Nokta tahmin eden modellerde σ boş bırakılır (NaN).
 - **Uyarı kuralı (doğrulama setinde, teste bakmadan):** σ'ların %5'inden fazlası sınırlardan birine %1 yakınlıktaysa, bu bir kararlılık sorunu olarak raporlanır.
 - Stirn 2023'teki "faithful" kayıp, rapordan sonra sabit bir ikincil koşul olarak denenir. Otomatik geçiş kuralı kaldırıldı, çünkü sonuçlara göre dallanmaya yol açıyordu.
 
-### 5.4 H2b sondası (rapordan sonra)
+### 5.4 H2b sondası (rapordan sonra, ikincil)
+
+**Değişiklik (Tur 10):**
+- Hedef düzeltilmiş s'dir (`s_*_adj`). Dinleyici etkileri her katın yalnızca eğitim kısmında yeniden kestirilir.
+- ΔR², güvenilirlik tavanına (≈ 0,15–0,19) oranlanarak yorumlanır.
+
+### 5.5 H2c: bireysel puanlarla σ_dinleyici (rapordan sonra)
+
+- H2a'daki başlığın aynısı kullanılır. Eğitim hedefi her dinleyicinin kendi puanıdır.
+- Sonuçta iki σ elde edilir: σ_ortalama (ortalamanın tahmin hatası) ve σ_dinleyici (dinleyicilerin yayılımı). İkisi karşılaştırılır.
+- σ_dinleyici'nin klipler arasında ne kadar ayrışabileceği H2b'deki güvenilirlik tavanıyla sınırlıdır.
+
+### 5.6 H2b sondası: değişmeyen kararlar
 
 02'deki S6–S7 kararları değişmedi. Özetle:
 - Hedefler: s_V ve s_A.
@@ -174,7 +185,7 @@ Nokta tahmin eden modellerde σ boş bırakılır (NaN).
 
 Birincil test MERT'te yapılır; PANNs ve openSMILE betimsel.
 
-### 5.5 Ek hedef: LP-FT
+### 5.7 Ek hedef: LP-FT
 
 Takvim izin verirse tek katta yapılır. Yapılmazsa sınırlılık olarak raporlanır.
 
@@ -216,7 +227,8 @@ Takvim izin verirse tek katta yapılır. Yapılmazsa sınırlılık olarak rapor
 ## 9. Açık bağımlılıklar
 
 - **D1:** Grubun bu belgeyi onaylaması, S3 (boş sonuç kabulü) ve rapor sahibinin belirlenmesi.
-- **D2:** Zip denetimi. Sanatçı alanı ve statik bireysel puan olup olmadığı. 19 Kasım'a kadar bitmeli.
+- **D2:** ~~Zip denetimi~~. Etiketler ve metadata için **tamamlandı** (2026-11-21). Ses ve openSMILE özellikleri için kimlik eşleşmesi hâlâ açık.
+- **D1 eki:** H2b'nin yeniden çerçevelenmesi ve H2c için grup onayı.
 - **D3:** Progress report'un tarihi biliniyor (22 Kasım). Biçim ve sayfa sınırı hâlâ bilinmiyor.
 - **D4:** GPU erişimi. MERT çıkarımı süresinin tahmini (2–8 dk) GPU varsayıyor; CPU'da çok daha uzun sürer.
 - **D5:** Ortak repo.
