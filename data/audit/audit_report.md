@@ -46,14 +46,13 @@
 
 (The averaged file is rounded; differences around 0.05 are rounding. The smaller sd column shows which std definition the file uses.)
 
-Split-half reliability (200 random splits of each clip's raters, clips with n >= 4: 1744; Spearman-Brown corrected to full n):
+Split-half reliability (500 random 5/5 splits of each clip's raters; clips with exactly 10 raters: 1738 of 1744; Spearman-Brown corrected to 10 raters). Rater tendencies are estimated with an additive clip + rater model, rater effects shrunk towards 0 (pseudo-count 5.0); 'scale' also divides by each rater's shrunk residual sd.
 
-| quantity | r (halves) | Spearman-Brown |
-|---|---|---|
-| mean_V | 0.670 | 0.802 |
-| mean_A | 0.736 | 0.848 |
-| sd_V | 0.023 | 0.044 |
-| sd_A | -0.007 | -0.014 |
+| variant | mean_V | mean_A | sd_V | sd_A | mad_V | mad_A |
+|---|---|---|---|---|---|---|
+| raw | 0.802 | 0.847 | 0.043 | -0.011 | 0.069 | 0.021 |
+| rater bias removed | 0.841 | 0.888 | 0.101 | 0.054 | 0.124 | 0.074 |
+| rater bias + scale removed | 0.832 | 0.881 | 0.190 | 0.145 | 0.193 | 0.146 |
 
 - s_V: between-clip variance 0.165, expected sampling variance 0.152, implied reliability 0.077 (normal-theory approximation)
 - s_A: between-clip variance 0.150, expected sampling variance 0.141, implied reliability 0.060 (normal-theory approximation)
@@ -61,6 +60,8 @@ Split-half reliability (200 random splits of each clip's raters, clips with n >=
 
 - noise ceiling for R²(V) of the mean rating: 0.802 (1 - mean(s²/n) / Var(mu); rater noise only)
 - noise ceiling for R²(A) of the mean rating: 0.848 (1 - mean(s²/n) / Var(mu); rater noise only)
+- A: mu replaced by the per-rater mean for clip(s) [1968] ([6.18] -> [6.8])
+- s_V, s_A in labels.csv are per-rater sds (ddof=1); the averaged-file values are kept as s_V_file, s_A_file
 
 ## ID alignment
 

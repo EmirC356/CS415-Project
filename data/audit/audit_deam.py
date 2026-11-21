@@ -7,7 +7,9 @@ data/README.md, and writes:
   data/interim/labels.csv      one row per kept clip (local, git-ignored)
 
 labels.csv columns:
-  song_id, batch, n_raters, mu_V, s_V, mu_A, s_A   (rescaled to [-1, 1]: (x-5)/4, s/4)
+  song_id, batch, n_raters, mu_V, s_V, mu_A, s_A   (rescaled to [-1, 1]: (x-5)/4, s/4;
+                                         s = per-rater sd, ddof=1; mu from the averaged
+                                         file, clip 1968 arousal from per-rater mean)
   mu_V_raw, s_V_raw, mu_A_raw, s_A_raw   (1-9 scale, as distributed)
   artist_raw, artist_norm, title, genre, has_audio, has_features
 
@@ -184,6 +186,64 @@ def load_raters(files: list[Path]) -> pd.DataFrame:
     return rr
 
 
+SHRINK = 5.0   # pseudo-ratings pulling rater effects towards 0
+
+
+def adjust_raters(rr: pd.DataFrame, scale: bool, iters: int = 20) -> pd.DataFrame:
+    """Remove each rater's additive tendency (and optionally scale width).
+
+    Fits rating = clip_effect + rater_effect by alternating means, with the
+    rater effect shrunk: sum(residuals) / (n_r + SHRINK). With scale=True the
+    residual (rating - clip - rater) is divided by the rater's residual sd,
+    shrunk towards the pooled sd with the same pseudo-count, then rescaled
+    by the pooled sd so units stay comparable.
+    """
+    out = rr.copy()
+    for d in "VA":
+        y = rr[d].to_numpy(float)
+        clip = rr["song_id"].to_numpy()
+        rater = rr["worker"].astype(str).to_numpy()
+        b = pd.Series(0.0, index=pd.unique(rater))
+        for _ in range(iters):
+            c = pd.Series(y - b.reindex(rater).to_numpy()).groupby(clip).transform("mean").to_numpy()
+            res = pd.Series(y - c).groupby(rater)
+            b = res.sum() / (res.size() + SHRINK)
+        adj = y - b.reindex(rater).to_numpy()
+        if scale:
+            c = pd.Series(adj).groupby(clip).transform("mean").to_numpy()
+            e = adj - c
+            pooled = e.std()
+            g = pd.Series(e ** 2).groupby(rater)
+            sd_r = np.sqrt((g.sum() + SHRINK * pooled ** 2) / (g.size() + SHRINK))
+            adj = c + e / sd_r.reindex(rater).to_numpy() * pooled
+        out[d] = adj
+    return out
+
+
+def split_half(rr: pd.DataFrame, n_splits: int, seed: int) -> dict[str, float]:
+    """Spearman-Brown corrected split-half reliability of per-clip mean, sd
+    and mean absolute deviation, over clips with exactly 10 raters."""
+    rng = np.random.default_rng(seed)
+    g = rr.groupby("song_id")
+    ids = [s for s, n in g.size().items() if n == 10]
+    sub = rr[rr["song_id"].isin(ids)].sort_values("song_id")
+    X = sub[["V", "A"]].to_numpy(float).reshape(len(ids), 10, 2)
+    acc = {f"{q}_{d}": [] for q in ("mean", "sd", "mad") for d in "VA"}
+    for _ in range(n_splits):
+        perm = np.argsort(rng.random((len(ids), 10)), axis=1)
+        Xp = np.take_along_axis(X, perm[:, :, None], axis=1)
+        h = [Xp[:, :5], Xp[:, 5:]]
+        stats = []
+        for x in h:
+            m = x.mean(1)
+            stats.append({"mean": m, "sd": x.std(1, ddof=1),
+                          "mad": np.abs(x - m[:, None]).mean(1)})
+        for q in ("mean", "sd", "mad"):
+            for j, d in enumerate("VA"):
+                acc[f"{q}_{d}"].append(np.corrcoef(stats[0][q][:, j], stats[1][q][:, j])[0, 1])
+    return {k: (lambda r: 2 * r / (1 + r))(float(np.mean(v))) for k, v in acc.items()}
+
+
 def rater_analysis(rr: pd.DataFrame, kept: pd.DataFrame, problems: list[str],
                    n_splits: int = 200, seed: int = 415) -> list[str]:
     """n per clip, consistency with the averaged file, split-half reliability,
@@ -217,29 +277,26 @@ def rater_analysis(rr: pd.DataFrame, kept: pd.DataFrame, problems: list[str],
     out.append("(The averaged file is rounded; differences around 0.05 are rounding. The "
                "smaller sd column shows which std definition the file uses.)")
 
-    # split-half reliability: random halves of each clip's raters
-    rng = np.random.default_rng(seed)
-    groups = {sid: g[["V", "A"]].to_numpy(float) for sid, g in rr.groupby("song_id") if len(g) >= 4}
-    res = {f"{q}_{d}": [] for q in ("mean", "sd") for d in "VA"}
-    for _ in range(n_splits):
-        h1, h2 = [], []
-        for x in groups.values():
-            p = rng.permutation(len(x))
-            a, b = x[p[: len(x) // 2]], x[p[len(x) // 2:]]
-            h1.append(np.r_[a.mean(0), a.std(0, ddof=1)])
-            h2.append(np.r_[b.mean(0), b.std(0, ddof=1)])
-        h1, h2 = np.array(h1), np.array(h2)
-        for j, key in enumerate(["mean_V", "mean_A", "sd_V", "sd_A"]):
-            res[key].append(np.corrcoef(h1[:, j], h2[:, j])[0, 1])
+    # split-half reliability, raw and after removing rater tendencies (Q1b)
+    variants = {
+        "raw": rr,
+        "rater bias removed": adjust_raters(rr, scale=False),
+        "rater bias + scale removed": adjust_raters(rr, scale=True),
+    }
+    n10 = rr.groupby("song_id").size()
     out.append("")
-    out.append(f"Split-half reliability ({n_splits} random splits of each clip's raters, "
-               f"clips with n >= 4: {len(groups)}; Spearman-Brown corrected to full n):")
+    out.append(f"Split-half reliability ({n_splits} random 5/5 splits of each clip's raters; "
+               f"clips with exactly 10 raters: {(n10 == 10).sum()} of {len(n10)}; "
+               "Spearman-Brown corrected to 10 raters). Rater tendencies are estimated with "
+               "an additive clip + rater model, rater effects shrunk towards 0 "
+               f"(pseudo-count {SHRINK}); 'scale' also divides by each rater's shrunk residual sd.")
     out.append("")
-    out.append("| quantity | r (halves) | Spearman-Brown |")
-    out.append("|---|---|---|")
-    for key, v in res.items():
-        r = float(np.mean(v))
-        out.append(f"| {key} | {r:.3f} | {2 * r / (1 + r):.3f} |")
+    out.append("| variant | mean_V | mean_A | sd_V | sd_A | mad_V | mad_A |")
+    out.append("|---|---|---|---|---|---|---|")
+    for name, df in variants.items():
+        rel = split_half(df, n_splits, seed)
+        out.append(f"| {name} | " + " | ".join(f"{rel[k]:.3f}" for k in
+                   ["mean_V", "mean_A", "sd_V", "sd_A", "mad_V", "mad_A"]) + " |")
 
     # analytic check of the sd reliability: how much of the between-clip
     # variance of s is just sampling noise of an n-rater sd (~ s^2 / (2(n-1)))?
@@ -362,9 +419,26 @@ def run(raw: Path, out_md: Path, out_labels: Path) -> int:
         if rr.empty:
             lines.append("- per-rater file has no usable rows for the kept clips")
         else:
-            lines += rater_analysis(rr, kept, problems)
+            lines += rater_analysis(rr, kept, problems, n_splits=500)
             n = rr.groupby("song_id").size()
             kept["n_raters"] = kept["song_id"].astype(int).map(n)
+            # Label source (decision Q3c, 02 Tur 10): mu from the averaged file,
+            # except clips whose per-rater mean disagrees by > 0.06 (clip 1968);
+            # s always from the per-rater ratings with ddof=1, consistent with n.
+            sid = kept["song_id"].astype(int)
+            for d in "VA":
+                g = rr.groupby("song_id")[d]
+                m_r, s_r = sid.map(g.mean()), sid.map(g.std(ddof=1))
+                kept[f"s_{d}_file"] = kept[f"s_{d}_raw"]
+                fix = (m_r - kept[f"mu_{d}_raw"]).abs() > 0.06
+                if fix.any():
+                    lines.append(f"- {d}: mu replaced by the per-rater mean for clip(s) "
+                                 f"{sid[fix].tolist()} ({kept.loc[fix, f'mu_{d}_raw'].round(2).tolist()} "
+                                 f"-> {m_r[fix].round(2).tolist()})")
+                    kept.loc[fix, f"mu_{d}_raw"] = m_r[fix]
+                kept[f"s_{d}_raw"] = s_r.where(s_r.notna(), kept[f"s_{d}_raw"])
+            lines.append("- s_V, s_A in labels.csv are per-rater sds (ddof=1); the averaged-file "
+                         "values are kept as s_V_file, s_A_file")
     else:
         lines.append("- **per-rater static ratings: not found.** n per clip cannot be read "
                      "from the averaged files. The framework uses n = 10 (minimum stated "
@@ -413,6 +487,7 @@ def run(raw: Path, out_md: Path, out_labels: Path) -> int:
         kept[f"s_{d}"] = kept[f"s_{d}_raw"] / 4
     cols = ["song_id", "batch", "n_raters", "mu_V", "s_V", "mu_A", "s_A",
             "mu_V_raw", "s_V_raw", "mu_A_raw", "s_A_raw",
+            *[c for c in ("s_V_file", "s_A_file") if c in kept.columns],
             "artist_raw", "artist_norm", "title", "genre", "has_audio", "has_features"]
     out_labels.parent.mkdir(parents=True, exist_ok=True)
     kept[cols].sort_values("song_id").to_csv(out_labels, index=False)
