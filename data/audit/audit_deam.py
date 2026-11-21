@@ -279,7 +279,7 @@ def rater_analysis(rr: pd.DataFrame, kept: pd.DataFrame, problems: list[str],
         bad = diff[diff > 0.06]          # file values are rounded to 0.01
         if len(bad):
             problems.append(f"{d}: {len(bad)} clip(s) whose per-rater mean differs from the averaged "
-                            f"file by > 0.06: { {int(i): round(float(v), 2) for i, v in bad.items()} } (averaged-file value kept)")
+                            f"file by > 0.06: { {int(i): round(float(v), 2) for i, v in bad.items()} } (replaced by the per-rater mean, decision Q3c)")
     out.append("")
     out.append("(The averaged file is rounded; differences around 0.05 are rounding. The "
                "smaller sd column shows which std definition the file uses.)")

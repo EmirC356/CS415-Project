@@ -22,3 +22,4 @@ python features/extract_mert.py --audio data/raw/DEAM_audio --labels data/interi
 - A trailing window shorter than 5 s is dropped, so a 45 s clip gives 9 windows.
 - On a CUDA machine, install the CUDA build of torch first (https://pytorch.org/get-started/locally/).
 - `--random-init --out cache/mert95m_random` builds the H2b null model, after the report.
+- Tested on 2026-11-21 with torch 2.11.0+cu128, transformers 4.57.6 and an RTX 3070 Laptop GPU. transformers 5.x breaks MERT's remote code: `hidden_states` comes back as `None`. That is why requirements pins `<5`.

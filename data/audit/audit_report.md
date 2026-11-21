@@ -8,7 +8,7 @@
 - metadata: `metadata/metadata/metadata_2013.csv`
 - metadata: `metadata/metadata/metadata_2014.csv`
 - metadata: `metadata/metadata/metadata_2015.csv`
-- audio files with numeric ids: 0
+- audio files with numeric ids: 1802
 - openSMILE feature csv files with numeric ids: 0
 
 ## Clip count
@@ -69,9 +69,8 @@ Ceiling for any correlation with s = sqrt(reliability): raw s about 0.2, rater-a
 
 ## ID alignment
 
-- kept clips without audio: 1744 (first: [2, 3, 4, 5, 7, 8, 10, 12, 13, 17])
+- kept clips without audio: 0
 - kept clips without openSMILE features: 1744 (first: [2, 3, 4, 5, 7, 8, 10, 12, 13, 17])
-- (audio not unzipped yet: check skipped)
 - (features not unzipped yet: check skipped)
 
 ## Artists
