@@ -1,0 +1,14 @@
+
+*.pdf
+CS415_Group21_Proposal.pdf
+
+data/
+*.mp3
+*.wav
+*.zip
+
+__pycache__/
+*.pyc
+.venv/
+venv/
+.DS_Store
