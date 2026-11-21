@@ -1,6 +1,18 @@
 # CS415: Music Emotion Recognition with Uncertainty Estimation
 
-This repository contains the end-to-end pipeline for static continuous emotion recognition (Valence and Arousal) on the DEAM dataset (1,744 45-second music clips), incorporating artist-disjoint 10-fold cross-validation, feature aggregation, heteroscedastic neural networks, and uncertainty calibration analysis.
+This repository contains the complete end-to-end pipeline for static continuous emotion recognition (Valence and Arousal) on the DEAM dataset (1,744 45-second music clips), incorporating artist-disjoint 10-fold cross-validation, acoustic feature aggregation, heteroscedastic neural networks, and uncertainty calibration analysis.
+
+---
+
+## Interactive Report & Visualizations
+
+For a presentation-ready walkthrough with interactive charts and code, open the notebook:
+* **Jupyter Notebook**: [`analysis_report.ipynb`](analysis_report.ipynb)
+
+To regenerate all publication-quality figures at once:
+```bash
+python -m src.visualize
+```
 
 ---
 
@@ -25,10 +37,13 @@ python -m src.train --model deterministic_mlp --features opensmile
 # 3c. Ridge Regression baseline (RidgeCV for Valence & Arousal)
 python -m src.train --model ridge --features opensmile
 
-# 4. Evaluate out-of-fold predictions and generate reports & calibration plots
+# 4. Evaluate out-of-fold predictions and generate reports & calibration metrics
 python -m src.evaluate --preds outputs/preds_opensmile_heteroscedastic_mlp.csv
 python -m src.evaluate --preds outputs/preds_opensmile_deterministic_mlp.csv
 python -m src.evaluate --preds outputs/preds_opensmile_ridge.csv
+
+# 5. Generate all analysis and publication figures (scatter, dynamics, uncertainty)
+python -m src.visualize
 ```
 
 ---
@@ -36,16 +51,20 @@ python -m src.evaluate --preds outputs/preds_opensmile_ridge.csv
 ## Repository Structure
 
 ```
+├── analysis_report.ipynb               # Interactive Jupyter Notebook report
 ├── data/
 │   ├── DEAM_Annotations/               # Raw static & dynamic annotations
 │   ├── features/features/              # Frame-level openSMILE CSV files
 │   ├── metadata/                       # DEAM song metadata (2013, 2014, 2015)
 │   ├── processed_targets.csv           # Cleaned and rescaled targets ([-1, 1])
 │   └── opensmile_aggregated.parquet    # 520-dim aggregated acoustic feature matrix
-├── outputs/                            # Generated predictions, evaluations, and logs
+├── outputs/                            # Generated predictions, evaluations, and figures
 │   ├── preds_opensmile_*.csv           # Out-of-fold predictions
 │   ├── eval_preds_opensmile_*.md       # 10-fold metric evaluation reports
 │   ├── reliability_diagram.png         # Calibration curves (PICP vs Nominal)
+│   ├── sigma_learning_dynamics.png     # Two-stage training evolution of sigma
+│   ├── predictions_scatter.png         # Predicted vs. True with ±sigma confidence bars
+│   ├── uncertainty_distribution_analysis.png # Sigma distributions and error correlations
 │   └── sigma_logs_opensmile.csv        # Epoch-level validation sigma statistics
 ├── src/
 │   ├── __init__.py
@@ -53,25 +72,36 @@ python -m src.evaluate --preds outputs/preds_opensmile_ridge.csv
 │   ├── evaluate.py                     # 10-fold metrics (RMSE, R², CCC, Pearson) & uncertainty analysis
 │   ├── make_splits.py                  # Artist normalization & GroupKFold splitting
 │   ├── models.py                       # RidgeBaseline, DeterministicMLP, HeteroscedasticMLP
-│   └── train.py                        # 10-fold CV training loop with fold-isolated scaling
+│   ├── train.py                        # 10-fold CV training loop with fold-isolated scaling
+│   └── visualize.py                    # Generates all publication-quality analysis figures
 ├── splits.csv                          # 10-fold artist-disjoint assignments (song_id, artist, fold)
 └── README.md
 ```
 
 ---
 
-## Contents of `outputs/`
+## Key Figures for the Report
 
-The `outputs/` folder contains all experimental results and evaluation artifacts:
+All figures are automatically saved to `outputs/` at 300 DPI for inclusion in project reports and presentations:
 
-| File | Description | Key Columns / Output |
-| :--- | :--- | :--- |
-| `preds_opensmile_heteroscedastic_mlp.csv` | Out-of-fold predictions from Heteroscedastic MLP | `song_id`, `fold`, `mu_v`, `mu_a`, `sigma_v`, `sigma_a` |
-| `preds_opensmile_deterministic_mlp.csv` | Out-of-fold predictions from Deterministic MLP | `song_id`, `fold`, `mu_v`, `mu_a`, `sigma_v`, `sigma_a` |
-| `preds_opensmile_ridge.csv` | Out-of-fold predictions from Ridge Regression | `song_id`, `fold`, `mu_v`, `mu_a`, `sigma_v`, `sigma_a` |
-| `eval_preds_opensmile_*.md` | Comprehensive Markdown report per model | 10-fold mean ± std tables for RMSE, R², CCC, Pearson $r$, NLL, PICP |
-| `reliability_diagram.png` | Calibration curve plot | Empirical coverage (PICP) vs nominal coverage ($[0.05, 0.95]$) |
-| `sigma_logs_opensmile.csv` | Per-epoch validation $\sigma$ stats across folds | `fold`, `epoch`, `stage`, `val_nll`, `sigma_v_mean`, `sigma_a_mean`, etc. |
+### 1. Training Dynamics of $\sigma$ (`outputs/sigma_learning_dynamics.png`)
+* **Panel 1**: Illustrates how predicted uncertainty ($\sigma$) is regularized. During **Stage 1 (15-epoch MSE Warmup)**, the backbone learns mean representation without variance drift. During **Stage 2 (Gaussian NLL)**, the network dynamically adapts $\sigma$ per sample while remaining safely bounded in $[0.05, 1.0]$.
+* **Panel 2**: Progression of validation MSE and Gaussian NLL with early stopping.
+
+### 2. Predictions with Confidence Intervals (`outputs/predictions_scatter.png`)
+* Scatter plots of True vs. Predicted Valence and Arousal.
+* Each sample includes predicted $\pm\sigma$ error bars showing model confidence.
+* Confirms high correlation ($r = 0.681$ for Valence, $r = 0.735$ for Arousal).
+
+### 3. Reliability Diagram (`outputs/reliability_diagram.png`)
+* Compares empirical coverage against ideal calibration ($y = x$) across nominal levels from $0.05$ to $0.95$.
+* **68% Nominal Coverage** $\rightarrow$ **65.68%** empirical coverage.
+* **95% Nominal Coverage** $\rightarrow$ **93.61%** empirical coverage.
+
+### 4. Uncertainty & Disagreement Analysis (`outputs/uncertainty_distribution_analysis.png`)
+* **Distribution of $\sigma$**: Shows sample-level heteroscedasticity across the 1,744 clips.
+* **Error Correlation**: Highly significant positive correlation ($p < 10^{-14}$ for Arousal, $p < 10^{-4}$ for Valence) between $\sigma$ and actual absolute error $|y - \mu|$.
+* **Human Disagreement Correlation**: Positive correlation ($p < 0.05$) between model predicted $\sigma$ and human listener standard deviation.
 
 ---
 
@@ -90,37 +120,33 @@ The `outputs/` folder contains all experimental results and evaluation artifacts
 | Metric | Heteroscedastic MLP | Deterministic MLP (Baseline $\sigma$) | Ridge Baseline |
 | :--- | :---: | :---: | :---: |
 | **Gaussian NLL (Overall)** | **-0.1060** | -0.0047 | -0.0955 |
-| **PICP (68% Nominal)** | **65.68%** *(Valence: 65.94%, Arousal: 65.42%)* | 54.36% | 62.01% |
-| **PICP (95% Nominal)** | **93.61%** *(Valence: 93.81%, Arousal: 93.41%)* | 84.78% | 91.77% |
+| **PICP (68% Nominal)** | **65.68%** *(Val: 65.94%, Aro: 65.42%)* | 54.36% | 62.01% |
+| **PICP (95% Nominal)** | **93.61%** *(Val: 93.81%, Aro: 93.41%)* | 84.78% | 91.77% |
 | **$\text{Corr}(\sigma, \|y - \mu\|)$ Spearman (Valence)** | **0.1019** ($p = 2.01 \times 10^{-5}$) | 0.0116 ($p = 0.63$) | -0.0442 ($p = 0.07$) |
 | **$\text{Corr}(\sigma, \|y - \mu\|)$ Spearman (Arousal)** | **0.1848** ($p = 7.37 \times 10^{-15}$) | 0.0014 ($p = 0.95$) | -0.0001 ($p = 0.99$) |
 | **$\text{Corr}(\sigma, \text{Disagreement})$ (Valence)** | **0.0505** ($p = 0.035$) | -0.0389 ($p = 0.10$) | 0.0089 ($p = 0.71$) |
 | **$\text{Corr}(\sigma, \text{Disagreement})$ (Arousal)** | **0.0542** ($p = 0.024$) | 0.0024 ($p = 0.92$) | 0.0153 ($p = 0.52$) |
 
-> **Key Finding**: The Heteroscedastic MLP outputs well-calibrated confidence intervals (65.68% empirical coverage for nominal 68%, and 93.61% for nominal 95%). Furthermore, its predicted $\sigma$ strongly and statistically significantly correlates with actual absolute error ($p < 10^{-4}$ for Valence, $p < 10^{-14}$ for Arousal), proving it successfully captures sample-level epistemic/aleatoric uncertainty.
+---
+
+## Data & Split Audit (Section 1 of Report)
+
+* **Dataset Size**: 1,744 45-second audio clips from DEAM.
+* **Target Scaling**: Linearly transformed from $[1, 9]$ to $[-1, 1]$ via $(y - 5.0) / 4.0$.
+* **Listener Counts**: Average 10.01 raters per song (min 10, max 20, median 10).
+* **Fold Integrity**: 10-fold artist-grouped split with strictly 0 artist overlap across folds.
 
 ---
 
-## What Is the Next Thing to Do?
+## Next Steps for the Team
 
-1. **Extract & Integrate MERT Embeddings (`--features mert`)**:
-   - Extract representations from a pre-trained music foundation model (e.g., `m-a-p/MERT-v1-330M`) for the 1,744 audio clips into `data/mert_cache/`.
-   - Run:
+1. **MERT Integration**:
+   - Once Can extracts embeddings to `cache/mert95m/`, train models on MERT representations:
      ```bash
      python -m src.train --model heteroscedastic_mlp --features mert
      python -m src.evaluate --preds outputs/preds_mert_heteroscedastic_mlp.csv
      ```
-   - Compare openSMILE hand-crafted acoustic features vs. MERT deep representations.
-
-2. **Feature Fusion / Multimodal Experiment**:
-   - Concatenate openSMILE (acoustic statistics) + MERT (deep contextual semantics) into an ensemble representation to test whether acoustic prosody and deep self-supervised embeddings are complementary.
-
-3. **Qualitative Error & Disagreement Case Study**:
-   - Identify songs with:
-     - High error and high predicted $\sigma$ (model appropriately knows it doesn't know).
-     - High error but low predicted $\sigma$ (overconfident failures).
-     - High annotator standard deviation (`valence_std`, `arousal_std`) vs. model predicted $\sigma$.
-
-4. **Prepare Visualizations for Report / Presentation**:
-   - Generate predicted vs. true scatter plots with error bars ($\mu \pm \sigma$).
-   - Include `outputs/reliability_diagram.png` in the methodology/results section.
+2. **SVR Baseline**:
+   - Run SVR baseline for openSMILE to complete Efe's portion.
+3. **Assemble Final Report**:
+   - Use the tables and figures generated in `outputs/` and the walkthrough in `analysis_report.ipynb` directly in your report.
