@@ -84,21 +84,29 @@ python -m src.visualize
 
 All figures are automatically saved to `outputs/` at 300 DPI for inclusion in project reports and presentations:
 
-### 1. Training Dynamics of $\sigma$ (`outputs/sigma_learning_dynamics.png`)
+### 1. Training Dynamics of $\sigma$
+![Training Dynamics](outputs/sigma_learning_dynamics.png)
+
 * **Panel 1**: Illustrates how predicted uncertainty ($\sigma$) is regularized. During **Stage 1 (15-epoch MSE Warmup)**, the backbone learns mean representation without variance drift. During **Stage 2 (Gaussian NLL)**, the network dynamically adapts $\sigma$ per sample while remaining safely bounded in $[0.05, 1.0]$.
 * **Panel 2**: Progression of validation MSE and Gaussian NLL with early stopping.
 
-### 2. Predictions with Confidence Intervals (`outputs/predictions_scatter.png`)
+### 2. Predictions with Confidence Intervals
+![Predictions with Confidence Intervals](outputs/predictions_scatter.png)
+
 * Scatter plots of True vs. Predicted Valence and Arousal.
 * Each sample includes predicted $\pm\sigma$ error bars showing model confidence.
 * Confirms high correlation ($r = 0.681$ for Valence, $r = 0.735$ for Arousal).
 
-### 3. Reliability Diagram (`outputs/reliability_diagram.png`)
+### 3. Reliability Diagram
+![Reliability Diagram](outputs/reliability_diagram.png)
+
 * Compares empirical coverage against ideal calibration ($y = x$) across nominal levels from $0.05$ to $0.95$.
 * **68% Nominal Coverage** $\rightarrow$ **65.68%** empirical coverage.
 * **95% Nominal Coverage** $\rightarrow$ **93.61%** empirical coverage.
 
-### 4. Uncertainty & Disagreement Analysis (`outputs/uncertainty_distribution_analysis.png`)
+### 4. Uncertainty & Disagreement Analysis
+![Uncertainty & Disagreement Analysis](outputs/uncertainty_distribution_analysis.png)
+
 * **Distribution of $\sigma$**: Shows sample-level heteroscedasticity across the 1,744 clips.
 * **Error Correlation**: Highly significant positive correlation ($p < 10^{-14}$ for Arousal, $p < 10^{-4}$ for Valence) between $\sigma$ and actual absolute error $|y - \mu|$.
 * **Human Disagreement Correlation**: Positive correlation ($p < 0.05$) between model predicted $\sigma$ and human listener standard deviation.
