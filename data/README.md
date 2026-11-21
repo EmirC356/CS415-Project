@@ -21,7 +21,13 @@ Unzip each archive into `data/raw/<archive name without .zip>/`.
 
 ## Data audit (first section of the progress report)
 
-The audit script and its output go in `data/audit/`. It reports:
+Run:
+
+```bash
+python data/audit/audit_deam.py --raw data/raw
+```
+
+It writes `data/audit/audit_report.md` (commit this) and `data/interim/labels.csv` (local; the input for the fold file and every model). It finds the files by searching, so the exact folder layout inside the zips does not matter. It reports:
 
 - [ ] Clip count is 1,744; there are no missing μ or s values; μ and s lie in valid ranges.
 - [ ] Number of raters n per clip, if it can be recovered.

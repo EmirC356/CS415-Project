@@ -1,12 +1,14 @@
 # Core
 numpy>=1.24
 pandas>=2.0
+pyarrow>=14         # parquet caches
 scipy>=1.10
 scikit-learn>=1.3   # StratifiedGroupKFold needs >=1.0
 
 # Deep learning / audio
 torch>=2.1
-torchaudio>=2.1
+librosa>=0.10       # audio loading + resampling (soundfile backend reads mp3)
+soundfile>=0.12
 transformers>=4.38  # MERT-v1-95M is loaded with trust_remote_code=True
 nnAudio>=0.3.2      # required by MERT's remote code
 

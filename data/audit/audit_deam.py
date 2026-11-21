@@ -1,0 +1,304 @@
+"""DEAM data audit (progress-report section 1).
+
+Reads the unzipped DEAM archives under --raw, checks the items in
+data/README.md, and writes:
+
+  data/audit/audit_report.md   human-readable report (commit this)
+  data/interim/labels.csv      one row per kept clip (local, git-ignored)
+
+labels.csv columns:
+  song_id, batch, mu_V, s_V, mu_A, s_A   (rescaled to [-1, 1]: (x-5)/4, s/4)
+  mu_V_raw, s_V_raw, mu_A_raw, s_A_raw   (1-9 scale, as distributed)
+  artist_raw, artist_norm, title, genre, has_audio, has_features
+
+The DEAM folder layout is located by searching for files, not by fixed
+paths, because the layout inside the zips has not been verified yet.
+Every file the script uses is listed in the report.
+
+Usage:
+  python data/audit/audit_deam.py --raw data/raw
+"""
+
+from __future__ import annotations
+
+import argparse
+import re
+import unicodedata
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+EXPECTED_CLIPS = 1744          # 2013-2014 set (Aljanaki et al. 2017)
+FIRST_2015_ID = 2001           # 2015 full songs use ids 2001-2058
+MAX_SONGS_PER_ARTIST = 5       # stated in Aljanaki et al. 2017
+
+
+# --------------------------------------------------------------------------
+# helpers
+# --------------------------------------------------------------------------
+def norm_col(c: str) -> str:
+    """'  Valence_Mean ' -> 'valence_mean'."""
+    return re.sub(r"[^a-z0-9]+", "_", str(c).strip().lower()).strip("_")
+
+
+def read_csv_any(path: Path) -> pd.DataFrame:
+    """DEAM csv files mix separators and encodings; try the common ones."""
+    for enc in ("utf-8", "latin-1"):
+        for sep in (",", ";", "\t"):
+            try:
+                df = pd.read_csv(path, sep=sep, encoding=enc, engine="python")
+            except Exception:
+                continue
+            if df.shape[1] > 1:
+                df.columns = [norm_col(c) for c in df.columns]
+                return df
+    raise ValueError(f"could not parse {path}")
+
+
+_FEAT = re.compile(r"\s*(\(|\[)?\s*(feat\.?|ft\.?|featuring|with)\s+.*$", re.I)
+
+
+def normalize_artist(name) -> str:
+    """Grouping key for artist-disjoint folds.
+
+    casefold, unicode NFKC, drop 'feat./ft./featuring/with ...' tails,
+    '&'/'and' unified, punctuation removed, whitespace collapsed.
+    """
+    if name is None or (isinstance(name, float) and np.isnan(name)):
+        return ""
+    s = unicodedata.normalize("NFKC", str(name)).casefold().strip()
+    s = _FEAT.sub("", s)
+    s = s.replace("&", " and ")
+    s = re.sub(r"[^\w\s]", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
+def pick(df: pd.DataFrame, *cands: str) -> str | None:
+    for c in cands:
+        if c in df.columns:
+            return c
+    for c in df.columns:                      # fuzzy fallback
+        if any(k in c for k in cands):
+            return c
+    return None
+
+
+# --------------------------------------------------------------------------
+# loaders
+# --------------------------------------------------------------------------
+def find_static_files(raw: Path) -> list[Path]:
+    files = [p for p in raw.rglob("*.csv")
+             if "static" in p.name.lower() and "averaged" in str(p).lower()]
+    if not files:  # fallback: any static csv
+        files = [p for p in raw.rglob("*.csv") if "static" in p.name.lower()
+                 and "each rater" not in str(p).lower()]
+    return sorted(files)
+
+
+def load_static(files: list[Path]) -> pd.DataFrame:
+    frames = []
+    for f in files:
+        df = read_csv_any(f)
+        cid = pick(df, "song_id", "songid", "id")
+        cols = {
+            "mu_V_raw": pick(df, "valence_mean"),
+            "s_V_raw": pick(df, "valence_std"),
+            "mu_A_raw": pick(df, "arousal_mean"),
+            "s_A_raw": pick(df, "arousal_std"),
+        }
+        if cid is None or any(v is None for v in cols.values()):
+            raise ValueError(f"{f}: unexpected columns {list(df.columns)}")
+        out = df[[cid, *cols.values()]].copy()
+        out.columns = ["song_id", *cols.keys()]
+        out["source_file"] = f.name
+        frames.append(out)
+    lab = pd.concat(frames, ignore_index=True)
+    lab["song_id"] = pd.to_numeric(lab["song_id"], errors="coerce").astype("Int64")
+    for c in ["mu_V_raw", "s_V_raw", "mu_A_raw", "s_A_raw"]:
+        lab[c] = pd.to_numeric(lab[c], errors="coerce")
+    return lab
+
+
+def load_metadata(raw: Path) -> tuple[pd.DataFrame, list[Path]]:
+    files = sorted(p for p in raw.rglob("*.csv") if "metadata" in p.name.lower())
+    frames = []
+    for f in files:
+        df = read_csv_any(f)
+        cid = pick(df, "song_id", "songid", "id")
+        if cid is None:
+            continue
+        year = re.search(r"(2013|2014|2015)", f.name)
+        out = pd.DataFrame({
+            "song_id": pd.to_numeric(df[cid], errors="coerce").astype("Int64"),
+            "artist_raw": df[pick(df, "artist")] if pick(df, "artist") else pd.NA,
+            "title": df[pick(df, "song_title", "title")] if pick(df, "song_title", "title") else pd.NA,
+            "genre": df[pick(df, "genre")] if pick(df, "genre") else pd.NA,
+            "meta_year": int(year.group(1)) if year else pd.NA,
+        })
+        frames.append(out)
+    if not frames:
+        return pd.DataFrame(columns=["song_id", "artist_raw", "title", "genre", "meta_year"]), files
+    meta = pd.concat(frames, ignore_index=True).drop_duplicates("song_id", keep="first")
+    return meta, files
+
+
+def ids_in(dirpath_glob: list[Path], exts: tuple[str, ...]) -> set[int]:
+    ids = set()
+    for p in dirpath_glob:
+        if p.suffix.lower() in exts and p.stem.isdigit():
+            ids.add(int(p.stem))
+    return ids
+
+
+# --------------------------------------------------------------------------
+# audit
+# --------------------------------------------------------------------------
+def run(raw: Path, out_md: Path, out_labels: Path) -> int:
+    lines: list[str] = ["# DEAM data audit", ""]
+    problems: list[str] = []
+
+    def section(t):
+        lines.extend(["", f"## {t}", ""])
+
+    # ---- files ---------------------------------------------------------
+    static_files = find_static_files(raw)
+    meta, meta_files = load_metadata(raw)
+    all_files = list(raw.rglob("*"))
+    audio_ids = ids_in(all_files, (".mp3", ".wav"))
+    feat_ids = ids_in([p for p in all_files if "feature" in str(p).lower()], (".csv",))
+    rater_dir_files = [p for p in all_files if "each rater" in str(p).lower() and p.is_file()]
+    rater_static = [p for p in rater_dir_files
+                    if "static" in str(p).lower() or "song_level" in str(p).lower()]
+
+    section("Files used")
+    lines += [f"- static labels: `{f.relative_to(raw).as_posix()}`" for f in static_files] or ["- static labels: **none found**"]
+    lines += [f"- metadata: `{f.relative_to(raw).as_posix()}`" for f in meta_files] or ["- metadata: **none found**"]
+    lines.append(f"- audio files with numeric ids: {len(audio_ids)}")
+    lines.append(f"- openSMILE feature csv files with numeric ids: {len(feat_ids)}")
+    if not static_files:
+        problems.append("no static label file found")
+        out_md.write_text("\n".join(lines + ["", "**Audit stopped: no static labels.**"]), encoding="utf-8")
+        print("\n".join(lines))
+        return 1
+
+    # ---- labels --------------------------------------------------------
+    lab = load_static(static_files)
+    dup = lab["song_id"].duplicated(keep=False)
+    lab = lab.drop_duplicates("song_id", keep="first")
+    lab = lab.merge(meta, on="song_id", how="left")
+    lab["batch"] = np.where(lab["meta_year"].notna(), lab["meta_year"],
+                            np.where(lab["song_id"] >= FIRST_2015_ID, 2015, pd.NA))
+    keep = lab["song_id"] < FIRST_2015_ID
+    kept = lab[keep].copy()
+    n_kept = len(kept)
+
+    section("Clip count")
+    lines.append(f"- rows in static files: {len(lab) + int(dup.sum() // 2)}; duplicate ids: {int(dup.sum())}")
+    lines.append(f"- kept (id < {FIRST_2015_ID}, i.e. 2013-2014): **{n_kept}** (expected {EXPECTED_CLIPS})")
+    lines.append(f"- excluded 2015 rows: {int((~keep).sum())}")
+    if n_kept != EXPECTED_CLIPS:
+        problems.append(f"clip count {n_kept} != {EXPECTED_CLIPS}")
+    if kept["batch"].notna().any():
+        lines.append(f"- batch from metadata: {kept['batch'].value_counts(dropna=False).to_dict()}")
+    else:
+        lines.append("- batch: metadata has no year information; 2013/2014 flag missing")
+        problems.append("2013/2014 batch flag unavailable")
+
+    section("Label values (1-9 scale)")
+    lines.append("| column | missing | min | max | mean |")
+    lines.append("|---|---|---|---|---|")
+    for c in ["mu_V_raw", "s_V_raw", "mu_A_raw", "s_A_raw"]:
+        v = kept[c]
+        lines.append(f"| {c} | {int(v.isna().sum())} | {v.min():.3f} | {v.max():.3f} | {v.mean():.3f} |")
+        if v.isna().any():
+            problems.append(f"{c}: {int(v.isna().sum())} missing")
+    for d in "VA":
+        mu, s = kept[f"mu_{d}_raw"], kept[f"s_{d}_raw"]
+        bad_mu = ((mu < 1) | (mu > 9)).sum()
+        bad_s = (s < 0).sum()
+        # Bhatia-Davis: Var <= (max-mu)(mu-min) for a variable bounded in [1, 9]
+        bd = np.sqrt(np.clip((9 - mu) * (mu - 1), 0, None))
+        over_bd = (s > bd + 1e-6).sum()
+        lines.append(f"- {d}: mu outside [1,9]: {int(bad_mu)}; s<0: {int(bad_s)}; "
+                     f"s above Bhatia-Davis max: {int(over_bd)}")
+        if bad_mu or bad_s or over_bd:
+            problems.append(f"{d}: {int(bad_mu)} mu out of range, {int(bad_s)} negative s, {int(over_bd)} s over bound")
+        lines.append(f"- {d}: Spearman(mu, s) = {mu.corr(s, method='spearman'):.3f}; "
+                     f"Spearman(|mu-5|, s) = {(mu - 5).abs().corr(s, method='spearman'):.3f}")
+
+    section("Raters per clip (n)")
+    lines.append(f"- files under an 'each rater' folder: {len(rater_dir_files)}")
+    if rater_static:
+        lines.append(f"- **per-rater static files found: {len(rater_static)}** "
+                     f"(e.g. `{rater_static[0].relative_to(raw).as_posix()}`), so n and a split-half "
+                     "noise ceiling can be computed")
+    else:
+        lines.append("- **per-rater static ratings: not found.** n per clip cannot be read "
+                     "from the averaged files. The framework uses n = 10 (minimum stated "
+                     "in Aljanaki et al. 2017) as a stated assumption.")
+
+    section("ID alignment")
+    ids = set(kept["song_id"].astype(int))
+    lines.append(f"- kept clips without audio: {len(ids - audio_ids)}"
+                 + (f" (first: {sorted(ids - audio_ids)[:10]})" if ids - audio_ids else ""))
+    lines.append(f"- kept clips without openSMILE features: {len(ids - feat_ids)}"
+                 + (f" (first: {sorted(ids - feat_ids)[:10]})" if ids - feat_ids else ""))
+    if audio_ids and ids - audio_ids:
+        problems.append(f"{len(ids - audio_ids)} clips without audio")
+    if feat_ids and ids - feat_ids:
+        problems.append(f"{len(ids - feat_ids)} clips without features")
+    if not audio_ids:
+        lines.append("- (audio not unzipped yet: check skipped)")
+    if not feat_ids:
+        lines.append("- (features not unzipped yet: check skipped)")
+    kept["has_audio"] = kept["song_id"].astype(int).isin(audio_ids)
+    kept["has_features"] = kept["song_id"].astype(int).isin(feat_ids)
+
+    section("Artists")
+    kept["artist_norm"] = kept["artist_raw"].map(normalize_artist)
+    missing_artist = (kept["artist_norm"] == "").sum()
+    per_artist = kept.loc[kept["artist_norm"] != "", "artist_norm"].value_counts()
+    merged = (kept.groupby("artist_norm")["artist_raw"].nunique() > 1).sum()
+    lines.append(f"- clips without artist: **{int(missing_artist)}**")
+    lines.append(f"- distinct normalised artists: {len(per_artist)}; raw spellings merged "
+                 f"by normalisation: {int(merged)} artists")
+    if len(per_artist):
+        lines.append(f"- songs per artist: max {per_artist.max()}, median {per_artist.median():.0f}; "
+                     f"artists with 1 song: {(per_artist == 1).sum()}")
+        over = per_artist[per_artist > MAX_SONGS_PER_ARTIST]
+        lines.append(f"- artists above {MAX_SONGS_PER_ARTIST} songs: {len(over)}"
+                     + (f" ({over.head(10).to_dict()})" if len(over) else ""))
+        lines.append("- top 10: " + ", ".join(f"{a} ({n})" for a, n in per_artist.head(10).items()))
+    if missing_artist:
+        problems.append(f"{int(missing_artist)} clips without artist: they become their own group")
+        kept.loc[kept["artist_norm"] == "", "artist_norm"] = (
+            "__song_" + kept.loc[kept["artist_norm"] == "", "song_id"].astype(str))
+
+    # ---- write ---------------------------------------------------------
+    for d in "VA":
+        kept[f"mu_{d}"] = (kept[f"mu_{d}_raw"] - 5) / 4
+        kept[f"s_{d}"] = kept[f"s_{d}_raw"] / 4
+    cols = ["song_id", "batch", "mu_V", "s_V", "mu_A", "s_A",
+            "mu_V_raw", "s_V_raw", "mu_A_raw", "s_A_raw",
+            "artist_raw", "artist_norm", "title", "genre", "has_audio", "has_features"]
+    out_labels.parent.mkdir(parents=True, exist_ok=True)
+    kept[cols].sort_values("song_id").to_csv(out_labels, index=False)
+
+    section("Summary")
+    lines += [f"- PROBLEM: {p}" for p in problems] or ["- no problems found"]
+    lines.append(f"- labels written to `{out_labels.as_posix()}` ({n_kept} rows)")
+    out_md.parent.mkdir(parents=True, exist_ok=True)
+    out_md.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print("\n".join(lines))
+    return 0
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--raw", type=Path, default=Path("data/raw"))
+    ap.add_argument("--report", type=Path, default=Path("data/audit/audit_report.md"))
+    ap.add_argument("--labels", type=Path, default=Path("data/interim/labels.csv"))
+    a = ap.parse_args()
+    raise SystemExit(run(a.raw, a.report, a.labels))
