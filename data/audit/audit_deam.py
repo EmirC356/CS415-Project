@@ -7,7 +7,7 @@ data/README.md, and writes:
   data/interim/labels.csv      one row per kept clip (local, git-ignored)
 
 labels.csv columns:
-  song_id, batch, mu_V, s_V, mu_A, s_A   (rescaled to [-1, 1]: (x-5)/4, s/4)
+  song_id, batch, n_raters, mu_V, s_V, mu_A, s_A   (rescaled to [-1, 1]: (x-5)/4, s/4)
   mu_V_raw, s_V_raw, mu_A_raw, s_A_raw   (1-9 scale, as distributed)
   artist_raw, artist_norm, title, genre, has_audio, has_features
 
@@ -50,22 +50,37 @@ def read_csv_any(path: Path) -> pd.DataFrame:
                 df = pd.read_csv(path, sep=sep, encoding=enc, engine="python")
             except Exception:
                 continue
-            if df.shape[1] > 1:
+            # ragged rows make pandas shift fields into the index: reject
+            if df.shape[1] > 1 and isinstance(df.index, pd.RangeIndex):
                 df.columns = [norm_col(c) for c in df.columns]
                 return df
+    # Ragged rows (metadata_2014.csv has a variable number of last.fm tag
+    # fields): keep the header's columns, truncate longer rows.
+    import csv
+    for enc in ("utf-8", "latin-1"):
+        try:
+            with open(path, newline="", encoding=enc) as fh:
+                rows = list(csv.reader(fh))
+        except UnicodeDecodeError:
+            continue
+        header = [h for h in rows[0] if h.strip()]
+        k = len(header)
+        body = [(r + [""] * k)[:k] for r in rows[1:] if any(x.strip() for x in r)]
+        df = pd.DataFrame(body, columns=[norm_col(c) for c in header])
+        return df.apply(lambda col: col.str.strip())
     raise ValueError(f"could not parse {path}")
 
 
-_FEAT = re.compile(r"\s*(\(|\[)?\s*(feat\.?|ft\.?|featuring|with)\s+.*$", re.I)
+_FEAT = re.compile(r"\s*(\(|\[)?\s*(feat\.?|ft\.?|featuring)\s+.*$", re.I)
 
 
 def normalize_artist(name) -> str:
     """Grouping key for artist-disjoint folds.
 
-    casefold, unicode NFKC, drop 'feat./ft./featuring/with ...' tails,
+    casefold, unicode NFKC, drop "feat./ft./featuring ..." tails,
     '&'/'and' unified, punctuation removed, whitespace collapsed.
     """
-    if name is None or (isinstance(name, float) and np.isnan(name)):
+    if name is None or pd.isna(name):
         return ""
     s = unicodedata.normalize("NFKC", str(name)).casefold().strip()
     s = _FEAT.sub("", s)
@@ -133,7 +148,7 @@ def load_metadata(raw: Path) -> tuple[pd.DataFrame, list[Path]]:
         out = pd.DataFrame({
             "song_id": pd.to_numeric(df[cid], errors="coerce").astype("Int64"),
             "artist_raw": df[pick(df, "artist")] if pick(df, "artist") else pd.NA,
-            "title": df[pick(df, "song_title", "title")] if pick(df, "song_title", "title") else pd.NA,
+            "title": df[pick(df, "song_title", "track", "title")] if pick(df, "song_title", "track", "title") else pd.NA,
             "genre": df[pick(df, "genre")] if pick(df, "genre") else pd.NA,
             "meta_year": int(year.group(1)) if year else pd.NA,
         })
@@ -142,6 +157,114 @@ def load_metadata(raw: Path) -> tuple[pd.DataFrame, list[Path]]:
         return pd.DataFrame(columns=["song_id", "artist_raw", "title", "genre", "meta_year"]), files
     meta = pd.concat(frames, ignore_index=True).drop_duplicates("song_id", keep="first")
     return meta, files
+
+
+def load_raters(files: list[Path]) -> pd.DataFrame:
+    """Per-rater static ratings: columns song_id, worker, V, A (1-9 scale).
+
+    Only files with plain 'valence'/'arousal' columns are used (the 2013-2014
+    file); the 2015 file reports per-rater averages/max/min of a dynamic task.
+    """
+    frames = []
+    for f in files:
+        df = read_csv_any(f)
+        if not {"valence", "arousal"} <= set(df.columns):
+            continue
+        sid, wid = pick(df, "songid", "song_id"), pick(df, "workerid", "worker_id")
+        frames.append(pd.DataFrame({
+            "song_id": pd.to_numeric(df[sid], errors="coerce"),
+            "worker": df[wid] if wid else np.arange(len(df)),
+            "V": pd.to_numeric(df["valence"], errors="coerce"),
+            "A": pd.to_numeric(df["arousal"], errors="coerce"),
+        }))
+    if not frames:
+        return pd.DataFrame(columns=["song_id", "worker", "V", "A"])
+    rr = pd.concat(frames, ignore_index=True).dropna(subset=["song_id"])
+    rr["song_id"] = rr["song_id"].astype(int)
+    return rr
+
+
+def rater_analysis(rr: pd.DataFrame, kept: pd.DataFrame, problems: list[str],
+                   n_splits: int = 200, seed: int = 415) -> list[str]:
+    """n per clip, consistency with the averaged file, split-half reliability,
+    and the analytic noise ceiling for predicting the mean rating."""
+    out = []
+    n = rr.groupby("song_id").size()
+    out.append(f"- raters per clip: min {n.min()}, median {n.median():.0f}, max {n.max()}; "
+               f"clips with n < 10: {(n < 10).sum()}; distinct raters: {rr['worker'].nunique()}")
+    out.append(f"- kept clips without per-rater rows: {len(set(kept['song_id'].astype(int)) - set(n.index))}")
+    out.append(f"- rating values seen: V {sorted(rr['V'].dropna().unique().tolist())}, "
+               f"A {sorted(rr['A'].dropna().unique().tolist())}")
+
+    k = kept.set_index(kept["song_id"].astype(int))
+    out.append("")
+    out.append("| dim | max abs(mean_raters - mu_file) | max abs(sd_ddof0 - s_file) | max abs(sd_ddof1 - s_file) |")
+    out.append("|---|---|---|---|")
+    for d in "VA":
+        g = rr.groupby("song_id")[d]
+        m, s0, s1 = g.mean(), g.std(ddof=0), g.std(ddof=1)
+        idx = m.index.intersection(k.index)
+        dm = (m[idx] - k.loc[idx, f"mu_{d}_raw"]).abs().max()
+        d0 = (s0[idx] - k.loc[idx, f"s_{d}_raw"]).abs().max()
+        d1 = (s1[idx] - k.loc[idx, f"s_{d}_raw"]).abs().max()
+        out.append(f"| {d} | {dm:.3f} | {d0:.3f} | {d1:.3f} |")
+        diff = (m[idx] - k.loc[idx, f"mu_{d}_raw"]).abs()
+        bad = diff[diff > 0.06]          # file values are rounded to 0.01
+        if len(bad):
+            problems.append(f"{d}: {len(bad)} clip(s) whose per-rater mean differs from the averaged "
+                            f"file by > 0.06: { {int(i): round(float(v), 2) for i, v in bad.items()} } (averaged-file value kept)")
+    out.append("")
+    out.append("(The averaged file is rounded; differences around 0.05 are rounding. The "
+               "smaller sd column shows which std definition the file uses.)")
+
+    # split-half reliability: random halves of each clip's raters
+    rng = np.random.default_rng(seed)
+    groups = {sid: g[["V", "A"]].to_numpy(float) for sid, g in rr.groupby("song_id") if len(g) >= 4}
+    res = {f"{q}_{d}": [] for q in ("mean", "sd") for d in "VA"}
+    for _ in range(n_splits):
+        h1, h2 = [], []
+        for x in groups.values():
+            p = rng.permutation(len(x))
+            a, b = x[p[: len(x) // 2]], x[p[len(x) // 2:]]
+            h1.append(np.r_[a.mean(0), a.std(0, ddof=1)])
+            h2.append(np.r_[b.mean(0), b.std(0, ddof=1)])
+        h1, h2 = np.array(h1), np.array(h2)
+        for j, key in enumerate(["mean_V", "mean_A", "sd_V", "sd_A"]):
+            res[key].append(np.corrcoef(h1[:, j], h2[:, j])[0, 1])
+    out.append("")
+    out.append(f"Split-half reliability ({n_splits} random splits of each clip's raters, "
+               f"clips with n >= 4: {len(groups)}; Spearman-Brown corrected to full n):")
+    out.append("")
+    out.append("| quantity | r (halves) | Spearman-Brown |")
+    out.append("|---|---|---|")
+    for key, v in res.items():
+        r = float(np.mean(v))
+        out.append(f"| {key} | {r:.3f} | {2 * r / (1 + r):.3f} |")
+
+    # analytic check of the sd reliability: how much of the between-clip
+    # variance of s is just sampling noise of an n-rater sd (~ s^2 / (2(n-1)))?
+    out.append("")
+    for d in "VA":
+        g = rr.groupby("song_id")[d]
+        s, nn = g.std(ddof=1), g.size()
+        total = s.var(ddof=1)
+        noise = (s ** 2 / (2 * (nn - 1))).mean()
+        out.append(f"- s_{d}: between-clip variance {total:.3f}, expected sampling variance "
+                   f"{noise:.3f}, implied reliability {max(0.0, 1 - noise / total):.3f} "
+                   f"(normal-theory approximation)")
+    out.append("- Note: Spearman(mu, s) in the label section is computed from the same raters; "
+               "on a bounded scale a sample mean near the ends forces a small sample sd, so that "
+               "correlation is partly mechanical. Split halves remove this coupling.")
+
+    # analytic ceiling for predicting the mean: R2_max ~ 1 - E[s^2/n] / Var(mu)
+    out.append("")
+    for d in "VA":
+        g = rr.groupby("song_id")[d]
+        mu, var, nn = g.mean(), g.var(ddof=1), g.size()
+        ceil = 1 - (var / nn).mean() / mu.var(ddof=1)
+        out.append(f"- noise ceiling for R²({d}) of the mean rating: {ceil:.3f} "
+                   f"(1 - mean(s²/n) / Var(mu); rater noise only)")
+    return out
 
 
 def ids_in(dirpath_glob: list[Path], exts: tuple[str, ...]) -> set[int]:
@@ -230,10 +353,18 @@ def run(raw: Path, out_md: Path, out_labels: Path) -> int:
 
     section("Raters per clip (n)")
     lines.append(f"- files under an 'each rater' folder: {len(rater_dir_files)}")
+    kept["n_raters"] = pd.NA
     if rater_static:
         lines.append(f"- **per-rater static files found: {len(rater_static)}** "
-                     f"(e.g. `{rater_static[0].relative_to(raw).as_posix()}`), so n and a split-half "
-                     "noise ceiling can be computed")
+                     + ", ".join(f"`{p.relative_to(raw).as_posix()}`" for p in rater_static))
+        rr = load_raters(rater_static)
+        rr = rr[rr["song_id"].isin(set(kept["song_id"].astype(int)))]
+        if rr.empty:
+            lines.append("- per-rater file has no usable rows for the kept clips")
+        else:
+            lines += rater_analysis(rr, kept, problems)
+            n = rr.groupby("song_id").size()
+            kept["n_raters"] = kept["song_id"].astype(int).map(n)
     else:
         lines.append("- **per-rater static ratings: not found.** n per clip cannot be read "
                      "from the averaged files. The framework uses n = 10 (minimum stated "
@@ -280,7 +411,7 @@ def run(raw: Path, out_md: Path, out_labels: Path) -> int:
     for d in "VA":
         kept[f"mu_{d}"] = (kept[f"mu_{d}_raw"] - 5) / 4
         kept[f"s_{d}"] = kept[f"s_{d}_raw"] / 4
-    cols = ["song_id", "batch", "mu_V", "s_V", "mu_A", "s_A",
+    cols = ["song_id", "batch", "n_raters", "mu_V", "s_V", "mu_A", "s_A",
             "mu_V_raw", "s_V_raw", "mu_A_raw", "s_A_raw",
             "artist_raw", "artist_norm", "title", "genre", "has_audio", "has_features"]
     out_labels.parent.mkdir(parents=True, exist_ok=True)
