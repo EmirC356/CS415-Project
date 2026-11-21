@@ -1,14 +1,50 @@
-
-*.pdf
-CS415_Group21_Proposal.pdf
-
-data/
+# --- DEAM data: CC BY-NC, ~2 GB. Never commit. See data/README.md ---
+data/raw/
+data/interim/
+*.zip
 *.mp3
 *.wav
-*.zip
 
+# --- Embedding caches and model weights ---
+cache/
+*.npy
+*.npz
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+
+# --- Run outputs (predictions are committed; see results/README.md) ---
+results/runs/
+results/figures/*.png
+logs/
+wandb/
+
+# --- Python / tooling ---
 __pycache__/
-*.pyc
+*.py[cod]
 .venv/
 venv/
+env/
+.ipynb_checkpoints/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# --- OS / editor ---
 .DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# --- Legacy prototype pipeline (src/) keeps DEAM files directly under data/ ---
+data/DEAM_Annotations/
+data/features/
+data/metadata/
+data/processed_targets.csv
+data/*.parquet
+
+# --- Course documents ---
+*.pdf
+CS415_Group21_Proposal.pdf

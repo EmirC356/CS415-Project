@@ -1,10 +1,85 @@
-# CS415: Music Emotion Recognition with Uncertainty Estimation
+# CS415 Group 21: Uncertainty-Aware Music Emotion Recognition on DEAM
+
+This is the CS415 (Intro to Deep Learning, Fall 2026–27) group project of Can Yüzbey, Cem Özkul, Efe Kumru and Emir Ceylan.
+
+**Task.** We predict static valence and arousal for the 1,744 45-second DEAM clips from 2013–2014. We use frozen pretrained audio encoders (MERT-v1-95M first, PANNs later) and compare them with an openSMILE baseline. A heteroscedastic regression head predicts an uncertainty σ for each clip.
+
+**What σ means in this project:**
+
+> σ estimates the predictive error of the *mean* rating. It covers model approximation error plus the averaging noise in the mean rating (≈ s²/n). It is **not** the spread of individual listeners. A single network's σ also leaves out epistemic uncertainty, which we look at through the spread across a seed ensemble.
+
+The full research framework (hypotheses, criteria, protocol, roles) is in [`docs/framework.md`](docs/framework.md).
+
+## Progress report scope (due 2026-11-22)
+
+The order follows the instructor's feedback:
+
+1. Data and split integrity: annotations, artist identifiers, and zero artist overlap across folds.
+2. openSMILE baseline (ridge and SVR).
+3. Frozen MERT with a simple head (ridge, then MLP), compared with openSMILE **using the same head**. RMSE, R², CCC and Pearson are reported separately for valence and arousal.
+4. Heteroscedastic head: calibration, correlation of σ with the actual error, and a descriptive relation to annotator std. Variance stability diagnostics are logged.
+
+Deferred until after the report: PANNs, randomly initialised MERT, the layer probe (H2b) and LP-FT.
+
+## Repository layout
+
+```
+data/            how to obtain DEAM; raw data stays local (git-ignored)
+splits/          committed fold files (artist-grouped, quadrant-stratified 10-fold)
+features/        feature / embedding extraction code; caches go to cache/ (ignored)
+models/          regression heads: baseline, ridge/MLP, heteroscedastic
+eval/            shared metrics script; reads prediction files only
+results/
+  predictions/   one CSV per model run, in the shared format (committed)
+docs/            framework, data contracts
+```
+
+Each folder has a short README naming its owner and its input/output contract.
+
+## Shared contracts
+
+Workstreams connect only through three files:
+
+| Contract | Spec | Owner |
+|---|---|---|
+| Fold file | [`docs/contracts.md#fold-file`](docs/contracts.md#fold-file) | Emir |
+| Embedding cache | [`docs/contracts.md#embedding-cache`](docs/contracts.md#embedding-cache) | Can |
+| Prediction file | [`docs/contracts.md#prediction-file`](docs/contracts.md#prediction-file) | Emir |
+
+## Setup
+
+```bash
+python -m venv .venv
+# Windows: .venv\Scripts\activate    macOS/Linux: source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Then follow [`data/README.md`](data/README.md) to download DEAM.
+
+## Working rules
+
+- Work on a branch and open a PR into `main`. Do not push directly to `main`.
+- Never commit DEAM audio, annotations or caches. The data licence is CC BY-NC, and the files are large.
+- Choose hyperparameters and layers on each fold's validation part only. Never tune on test folds.
+- Every model writes a prediction file. All metrics come from the single script in `eval/`.
+- Fix the seeds and record them in the prediction file.
+
+---
+
+## Prototype pipeline (`src/`, pre-contract)
+
+> **Not the contract split.** Everything in this section was produced before the shared contracts in
+> [`docs/contracts.md`](docs/contracts.md) were agreed. It uses the root `splits.csv`
+> (`GroupKFold`, no quadrant stratification, its own artist normalisation, seed 42) and writes to `outputs/`.
+> Its numbers are **not comparable** to results on `splits/folds_artist.csv` and must not be mixed with
+> them in the report. Models for the report read `splits/folds_artist.csv` and write
+> `results/predictions/` in the shared format.
 
 This repository contains the complete end-to-end pipeline for static continuous emotion recognition (Valence and Arousal) on the DEAM dataset (1,744 45-second music clips), incorporating artist-disjoint 10-fold cross-validation, acoustic feature aggregation, heteroscedastic neural networks, and uncertainty calibration analysis.
 
 ---
 
-## Interactive Report & Visualizations
+### Interactive Report & Visualizations
 
 For a presentation-ready walkthrough with interactive charts and code, open the notebook:
 * **Jupyter Notebook**: [`analysis_report.ipynb`](analysis_report.ipynb)
@@ -16,7 +91,7 @@ python -m src.visualize
 
 ---
 
-## Quickstart & Reproduction One-Liners
+### Quickstart & Reproduction One-Liners
 
 Execute the following commands from the root directory to generate all artifacts in `outputs/`:
 
@@ -48,7 +123,7 @@ python -m src.visualize
 
 ---
 
-## Repository Structure
+### Repository Structure
 
 ```
 ├── analysis_report.ipynb               # Interactive Jupyter Notebook report
@@ -80,31 +155,31 @@ python -m src.visualize
 
 ---
 
-## Key Figures for the Report
+### Key Figures for the Report
 
 All figures are automatically saved to `outputs/` at 300 DPI for inclusion in project reports and presentations:
 
-### 1. Training Dynamics of $\sigma$
+#### 1. Training Dynamics of $\sigma$
 ![Training Dynamics](outputs/sigma_learning_dynamics.png)
 
 * **Panel 1**: Illustrates how predicted uncertainty ($\sigma$) is regularized. During **Stage 1 (15-epoch MSE Warmup)**, the backbone learns mean representation without variance drift. During **Stage 2 (Gaussian NLL)**, the network dynamically adapts $\sigma$ per sample while remaining safely bounded in $[0.05, 1.0]$.
 * **Panel 2**: Progression of validation MSE and Gaussian NLL with early stopping.
 
-### 2. Predictions with Confidence Intervals
+#### 2. Predictions with Confidence Intervals
 ![Predictions with Confidence Intervals](outputs/predictions_scatter.png)
 
 * Scatter plots of True vs. Predicted Valence and Arousal.
 * Each sample includes predicted $\pm\sigma$ error bars showing model confidence.
 * Confirms high correlation ($r = 0.681$ for Valence, $r = 0.735$ for Arousal).
 
-### 3. Reliability Diagram
+#### 3. Reliability Diagram
 ![Reliability Diagram](outputs/reliability_diagram.png)
 
 * Compares empirical coverage against ideal calibration ($y = x$) across nominal levels from $0.05$ to $0.95$.
 * **68% Nominal Coverage** $\rightarrow$ **65.68%** empirical coverage.
 * **95% Nominal Coverage** $\rightarrow$ **93.61%** empirical coverage.
 
-### 4. Uncertainty & Disagreement Analysis
+#### 4. Uncertainty & Disagreement Analysis
 ![Uncertainty & Disagreement Analysis](outputs/uncertainty_distribution_analysis.png)
 
 * **Distribution of $\sigma$**: Shows sample-level heteroscedasticity across the 1,744 clips.
@@ -113,9 +188,9 @@ All figures are automatically saved to `outputs/` at 300 DPI for inclusion in pr
 
 ---
 
-## Benchmark Results (10-Fold Artist-Disjoint CV)
+### Benchmark Results (10-Fold Artist-Disjoint CV)
 
-### 1. Regression Performance (Mean ± Std across 10 Folds)
+#### 1. Regression Performance (Mean ± Std across 10 Folds)
 
 | Model | Valence RMSE ↓ | Valence R² ↑ | Valence CCC ↑ | Valence $r$ ↑ | Arousal RMSE ↓ | Arousal R² ↑ | Arousal CCC ↑ | Arousal $r$ ↑ |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -123,7 +198,7 @@ All figures are automatically saved to `outputs/` at 300 DPI for inclusion in pr
 | **Deterministic MLP** | 0.2102 ± 0.0141 | 0.4666 ± 0.0662 | 0.6683 ± 0.0410 | 0.6930 ± 0.0414 | **0.2095 ± 0.0111** | **0.5547 ± 0.0597** | **0.7328 ± 0.0361** | **0.7524 ± 0.0339** |
 | **Heteroscedastic MLP** | 0.2157 ± 0.0161 | 0.4375 ± 0.0814 | 0.6508 ± 0.0442 | 0.6813 ± 0.0491 | 0.2178 ± 0.0093 | 0.5198 ± 0.0533 | 0.7104 ± 0.0320 | 0.7354 ± 0.0273 |
 
-### 2. Uncertainty Quantification & Calibration
+#### 2. Uncertainty Quantification & Calibration
 
 | Metric | Heteroscedastic MLP | Deterministic MLP (Baseline $\sigma$) | Ridge Baseline |
 | :--- | :---: | :---: | :---: |
@@ -137,7 +212,7 @@ All figures are automatically saved to `outputs/` at 300 DPI for inclusion in pr
 
 ---
 
-## Data & Split Audit (Section 1 of Report)
+### Data & Split Audit (Section 1 of Report)
 
 * **Dataset Size**: 1,744 45-second audio clips from DEAM.
 * **Target Scaling**: Linearly transformed from $[1, 9]$ to $[-1, 1]$ via $(y - 5.0) / 4.0$.
@@ -146,7 +221,7 @@ All figures are automatically saved to `outputs/` at 300 DPI for inclusion in pr
 
 ---
 
-## Next Steps for the Team
+### Next Steps for the Team
 
 1. **MERT Integration**:
    - Once Can extracts embeddings to `cache/mert95m/`, train models on MERT representations:
