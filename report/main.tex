@@ -34,7 +34,8 @@ excerpt. After correcting both, an SVR reaches $\R=0.38$ (valence) and $0.69$
 disagreement is almost unmeasurable with 10 raters, which clarifies what a
 variance head can represent. A heteroscedastic head on openSMILE matches the
 constant-variance reference only as a seed ensemble, and its learned variance
-adds a small error signal for valence; MERT is in progress.
+adds a small error signal for valence. With the same ridge head, MERT
+raises $\R$ to $0.56$/$0.75$ (valence/arousal), better in 10 of 10 folds.
 \end{abstract}
 
 %======================================================================
@@ -133,7 +134,7 @@ prediction files in a common format.
 
 \textbf{Representations.} openSMILE: mean and standard deviation of DEAM's 260
 frame-level descriptors over the excerpt (520-d). MERT-v1-95M: nine 5\,s
-windows at 24\,kHz, all 13 layers cached, layer chosen on validation.
+windows at 24\,kHz (eight for the 9 clips shorter than 45\,s), all 13 layers cached, layer chosen on validation.
 
 \textbf{Variance stability.} The heteroscedastic MLP bounds $\sigma$ softly,
 $\sigma=\sigma_{\min}+(\sigma_{\max}-\sigma_{\min})\,\mathrm{sigmoid}(z)$ with
@@ -230,6 +231,14 @@ $0.79/0.85$; averaging noise alone explains about 35\,\% (valence) and
 clear room to help, especially for valence, whose predictions are also
 compressed towards the centre (Fig.~\ref{fig:scatter}).
 
+\textbf{MERT ridge.} With the same ridge head and folds, MERT-v1-95M reaches
+$\R=0.56\pm0.07$/$0.75\pm0.03$ (Table~\ref{tab:baseline}), versus $0.37$/$0.67$ for openSMILE ridge:
+$\Delta\R=+0.191$/$+0.083$, better in 10/10 folds on both dimensions (Wilcoxon $p=0.002$);
+against openSMILE SVR, $+0.185$/$+0.061$, again 10/10. Layer and $\alpha$ were chosen jointly
+per fold and dimension on validation (layers 3--8, mostly 6--7); this search (13 layers
+$\times$ 25 $\alpha$) is wider than openSMILE's $\alpha$-only search. Random folds raise
+MERT $\R$ by only 0.027/0.011.
+
 \begin{figure}[t]
 \centering
 \includegraphics[width=0.92\columnwidth]{fig_baseline_scatter}
@@ -239,7 +248,7 @@ compressed towards the centre (Fig.~\ref{fig:scatter}).
 
 \textbf{Listener disagreement.} Split-half reliability (500 random 5/5 rater
 splits, corrected to 10 raters) is high for the mean rating ($0.79$/$0.85$)
-but near zero for the listener standard deviation $s$ ($0.00$/$0.05$; $0.21$/$0.14$
+but near zero for the listener standard deviation $s$ ($0.00$/$0.04$; $0.21$/$0.13$
 after removing rater bias and scale). Moreover, model error is
 \emph{negatively} related to $s$ (Spearman $-0.15$/$-0.10$, $p<10^{-4}$;
 Fig.~\ref{fig:dis}b). Clips near the scale centre have more disagreement
@@ -248,7 +257,8 @@ $\rho(|\mu|,s)=-0.23/-0.30$), while extreme clips are hardest to predict
 because regression shrinks towards the centre. With the rater-adjusted $s$ the
 correlation vanishes ($0.00/-0.03$). A $\sigma$ that tracks the model's error, as
 Eq.~\ref{eq:sigma} implies, therefore cannot be expected to track
-disagreement, which explains the finding of~\cite{watcharasupat2025}.
+disagreement, which is consistent with the finding of~\cite{watcharasupat2025};
+the main limit is the near-zero reliability of $s$.
 
 
 
@@ -283,11 +293,14 @@ learned $\sigma$ still lowers NLL by $0.017$ (8/10 folds, $p=0.014$), which is
 most of the $0.026$ gain over ridge. On arousal the learned $\sigma$ adds only
 $0.008$ ($p=0.32$), so the arousal improvement comes from ensembling, not from
 heteroscedasticity. The learned
-variance therefore carries a small but real error signal for valence and none we can
-demonstrate for arousal. With listener spread it is only weakly related
-($\rho(\sigma,s)=0.06$/$0.07$; $0.07$/$0.12$ with rater-adjusted $s$), as expected from Eq.~\ref{eq:sigma}
-and the near-zero reliability of $s$. These results use openSMILE only; the MERT
-extraction script is ready, but the cache was not complete at the time of writing.
+variance therefore carries a small but real error signal for valence (it holds after
+Holm correction over the four NLL comparisons, $p\approx0.04$) and none we can
+demonstrate for arousal ($p=0.75$). With listener spread it is only weakly related
+($\rho(\sigma,s)=0.06$/$0.07$; $0.11$/$0.08$ with rater-adjusted $s$), as expected from Eq.~\ref{eq:sigma}
+and the near-zero reliability of $s$. These results use openSMILE only. The MLP settings were fixed, not tuned on validation
+(hidden width 128, dropout 0.2, learning rate $10^{-3}$, weight decay $10^{-4}$, 15 warm-up
+and up to 60 NLL epochs, patience 10), so its comparison with the tuned ridge reference
+mixes head and tuning.
 
 \input{tables/tab_hetero}
 
@@ -312,14 +325,13 @@ model is flat by construction (dashed: its overall mean $|e|$ is the reference l
 %======================================================================
 We audited the data, built and verified an artist-grouped 10-fold protocol,
 corrected two defects in DEAM 2013, established the openSMILE baseline
-($\R=0.38/0.69$, CCC $=0.57/0.82$), quantified the artist effect, and showed
+($\R=0.38/0.69$, CCC $=0.57/0.82$), showed that MERT with the same ridge head reaches $\R=0.56/0.75$, quantified the artist effect, and showed
 that listener disagreement is barely measurable, which fixes how $\sigma$ will
 be interpreted. On openSMILE, the heteroscedastic head is stable, but a single
 head is worse than the constant-$\sigma$ reference; a 5-seed ensemble matches it on
 accuracy, is calibrated, and has a lower NLL on valence (owed mostly to the learned $\sigma$; on
 arousal the gain comes from ensembling), while its $\sigma$ ranks errors only weakly
-($\rho(\sigma,|e|)\approx0.15$). Next we will (1) train ridge and an MLP on MERT and compare
-them fold by fold with openSMILE (H1), and repeat the heteroscedastic head on MERT;
+($\rho(\sigma,|e|)\approx0.15$). Next we will (1) train an MLP on MERT and repeat the heteroscedastic head on MERT;
 (2) check whether the valence gain survives on MERT; and
 (3) then add PANNs and a head trained on individual ratings.
 
