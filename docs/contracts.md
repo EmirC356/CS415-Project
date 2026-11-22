@@ -10,10 +10,10 @@ Everything a workstream hands to another goes through one of these three files. 
 |---|---|---|
 | `song_id` | int | DEAM song id |
 | `artist_norm` | str | Normalised artist name (the grouping key) |
-| `quadrant` | int 1–4 | V–A quadrant of the rescaled μ (the stratification key) |
+| `quadrant` | int 1–4 | V–A quadrant of the rescaled μ (the stratification key): 1 = V≥0, A≥0; 2 = V<0, A≥0; 3 = V<0, A<0; 4 = V≥0, A<0. A μ of exactly 0 counts as positive (52 clips for V, 51 for A). |
 | `fold` | int 0–9 | Test fold of this clip |
 
-**Construction:** `StratifiedGroupKFold(n_splits=10, shuffle=True, random_state=415)`, with groups `artist_norm` and y `quadrant`.
+**Construction:** `StratifiedGroupKFold(n_splits=10, shuffle=True, random_state=415)`, with groups `artist_norm` and y `quadrant`. Rows are sorted by `song_id` before splitting. Script: `splits/make_folds.py`; settings and per-fold shares: `splits/folds_artist_report.md`.
 
 **Validation inside a fold:** for test fold `k`, fold `(k + 1) % 10` is the validation set and the other 8 folds are training (≈ 80/10/10). Everyone uses this rule.
 
