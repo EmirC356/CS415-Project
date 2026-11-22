@@ -65,10 +65,11 @@ def fig_swap(report_md: Path, out: Path):
             ax.text(xx, vv + 0.015, f"{vv:.2f}", ha="center", va="bottom", fontsize=6, color=INK2)
     ax.set_xticks(x, labels)
     ax.set_ylabel("Pearson r")
-    ax.set_ylim(0, 1.08)
+    ax.set_ylim(0, 1.18)
+    ax.set_yticks([0, 0.2, 0.4, 0.6, 0.8, 1.0])
     ax.axvline(1.5, color=INK2, lw=0.6, ls=":")
-    ax.text(0.5, 1.03, "matched", ha="center", fontsize=7, color=INK2)
-    ax.text(2.5, 1.03, "crossed", ha="center", fontsize=7, color=INK2)
+    ax.text(0.5, 1.11, "matched dimensions", ha="center", fontsize=7, color=INK2)
+    ax.text(2.5, 1.11, "crossed dimensions", ha="center", fontsize=7, color=INK2)
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.28), ncol=2, frameon=False)
     ax.grid(axis="x", visible=False)
     save(fig, out, "fig_va_swap")
@@ -136,24 +137,63 @@ def fig_fixes(conds: list[tuple[str, pd.DataFrame]], out: Path):
     save(fig, out, "fig_data_fixes")
 
 
+def fig_labels_disagreement(df: pd.DataFrame, labels: pd.DataFrame, out: Path):
+    """(a) Static labels in the V-A plane; (b) |error| of SVR vs listener sd, by sd decile."""
+    lab = labels.set_index("song_id")
+    fig, axes = plt.subplots(1, 2, figsize=(COL_W, 1.75), gridspec_kw={"width_ratios": [1, 1.25]})
+    ax = axes[0]
+    ax.scatter(lab.mu_V, lab.mu_A, s=2, color=C1, alpha=0.35, lw=0)
+    ax.axhline(0, color=INK2, lw=0.6); ax.axvline(0, color=INK2, lw=0.6)
+    ax.set_xlim(-1, 1); ax.set_ylim(-1, 1); ax.set_aspect("equal")
+    ax.set_xlabel("valence"); ax.set_ylabel("arousal")
+    ax.set_title("(a) static labels", fontsize=7)
+    ax = axes[1]
+    g = df[(df.model == "opensmile_svr") & (df.split_type == "artist")].set_index("song_id")
+    for d, col, mk in [("V", C1, "o"), ("A", C2, "s")]:
+        e = (g[f"y_{d}"] - g[f"mu_{d}"]).abs()
+        s = lab.loc[g.index, f"s_{d}"]
+        q = pd.qcut(s, 10, labels=False, duplicates="drop")
+        m = e.groupby(q).mean()
+        x = s.groupby(q).median()
+        ax.plot(4 * x, m, marker=mk, ms=3, lw=1.2, color=col, label=DIMNAME[d])
+    ax.set_xlabel("listener sd $s$ (1–9 scale, decile median)")
+    ax.set_ylabel("mean $|e|$ (SVR)")
+    ax.set_title("(b) error vs. disagreement", fontsize=7)
+    ax.legend(frameon=False, fontsize=6)
+    fig.tight_layout(w_pad=0.8)
+    save(fig, out, "fig_labels_disagreement")
+
+
 def table_main(pf: pd.DataFrame, out: Path):
     order = [("opensmile_ridge", "artist", "Ridge"), ("opensmile_svr", "artist", "SVR"),
-             ("opensmile_ridge", "random", "Ridge (random split)"), ("opensmile_svr", "random", "SVR (random split)")]
-    lines = [r"\begin{table}[t]", r"\centering",
-             r"\caption{openSMILE baselines, mean $\pm$ SD over 10 test folds.}",
-             r"\label{tab:baseline}", r"\footnotesize", r"\setlength{\tabcolsep}{3pt}",
-             r"\begin{tabular}{@{}llcccc@{}}", r"\toprule",
-             r"Head & Dim & $R^2$ & RMSE & RMSE$_{1\text{--}9}$ & CCC \\", r"\midrule"]
+             ("opensmile_ridge", "random", "Ridge"), ("opensmile_svr", "random", "SVR")]
+    lines = [r"\begin{table*}[t]", r"\centering",
+             r"\caption{openSMILE baselines, mean $\pm$ SD over the 10 test folds. RMSE is given on the "
+             r"rescaled $[-1,1]$ and on the original 1--9 scale. Best artist-grouped value per column and dimension in bold.}",
+             r"\label{tab:baseline}", r"\footnotesize",
+             r"\begin{tabular}{@{}lllccccc@{}}", r"\toprule",
+             r"Split & Head & Dim & $R^2\uparrow$ & RMSE$\downarrow$ & RMSE$_{1\text{--}9}\downarrow$ & CCC$\uparrow$ & Pearson $r\uparrow$ \\",
+             r"\midrule"]
+    cols = [("R2", max), ("RMSE", min), ("RMSE_19", min), ("CCC", max), ("r", max)]
+    best = {}
+    for d in ["V", "A"]:
+        g = pf[(pf.split_type == "artist") & (pf.dim == d) & pf.model.isin(["opensmile_ridge", "opensmile_svr"])]
+        means = g.groupby("model")[[c for c, _ in cols]].mean()
+        best[d] = {c: fn(means[c]) for c, fn in cols}
     for m, split, name in order:
         for d in ["V", "A"]:
             g = pf[(pf.model == m) & (pf.split_type == split) & (pf.dim == d)]
             if g.empty:
                 continue
-            f = lambda c: f"{g[c].mean():.3f}$\\pm${g[c].std(ddof=1):.3f}"
-            lines.append(f"{name if d == 'V' else ''} & {d} & {f('R2')} & {f('RMSE')} & {f('RMSE_19')} & {f('CCC')} \\\\")
+
+            def f(c):
+                s = f"{g[c].mean():.3f}$\\pm${g[c].std(ddof=1):.3f}"
+                return f"\\textbf{{{s}}}" if split == "artist" and abs(g[c].mean() - best[d][c]) < 1e-12 else s
+            sp = {"artist": "artist-grouped", "random": "random"}[split] if (d == "V" and m.endswith("ridge")) else ""
+            lines.append(f"{sp} & {name if d == 'V' else ''} & {d} & " + " & ".join(f(c) for c, _ in cols) + r" \\")
         if split == "artist" and m.endswith("svr"):
             lines.append(r"\midrule")
-    lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}"]
+    lines += [r"\bottomrule", r"\end{tabular}", r"\end{table*}"]
     out.mkdir(parents=True, exist_ok=True)
     (out / "tab_baseline.tex").write_text("\n".join(lines) + "\n")
 
@@ -187,6 +227,7 @@ def main():
     fig_scatter(df, figs, "opensmile_svr")
     table_main(pf, tabs)
     table_batch(df, pd.read_csv(args.labels), tabs)
+    fig_labels_disagreement(df, pd.read_csv(args.labels), figs)
 
     ridge = lambda path, lab: load([path], lab).query("split_type == 'artist'")
     conds = [

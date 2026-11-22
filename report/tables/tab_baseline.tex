@@ -1,22 +1,21 @@
-\begin{table}[t]
+\begin{table*}[t]
 \centering
-\caption{openSMILE baselines, mean $\pm$ SD over 10 test folds.}
+\caption{openSMILE baselines, mean $\pm$ SD over the 10 test folds. RMSE is given on the rescaled $[-1,1]$ and on the original 1--9 scale. Best artist-grouped value per column and dimension in bold.}
 \label{tab:baseline}
 \footnotesize
-\setlength{\tabcolsep}{3pt}
-\begin{tabular}{@{}llcccc@{}}
+\begin{tabular}{@{}lllccccc@{}}
 \toprule
-Head & Dim & $R^2$ & RMSE & RMSE$_{1\text{--}9}$ & CCC \\
+Split & Head & Dim & $R^2\uparrow$ & RMSE$\downarrow$ & RMSE$_{1\text{--}9}\downarrow$ & CCC$\uparrow$ & Pearson $r\uparrow$ \\
 \midrule
-Ridge & V & 0.372$\pm$0.079 & 0.216$\pm$0.017 & 0.865$\pm$0.068 & 0.563$\pm$0.070 \\
- & A & 0.671$\pm$0.061 & 0.189$\pm$0.017 & 0.756$\pm$0.068 & 0.806$\pm$0.041 \\
-SVR & V & 0.379$\pm$0.075 & 0.215$\pm$0.012 & 0.859$\pm$0.049 & 0.565$\pm$0.063 \\
- & A & 0.693$\pm$0.045 & 0.183$\pm$0.013 & 0.731$\pm$0.051 & 0.822$\pm$0.029 \\
+artist-grouped & Ridge & V & 0.372$\pm$0.079 & 0.216$\pm$0.017 & 0.865$\pm$0.068 & 0.563$\pm$0.070 & 0.622$\pm$0.058 \\
+ &  & A & 0.671$\pm$0.061 & 0.189$\pm$0.017 & 0.756$\pm$0.068 & 0.806$\pm$0.041 & 0.822$\pm$0.038 \\
+ & SVR & V & \textbf{0.379$\pm$0.075} & \textbf{0.215$\pm$0.012} & \textbf{0.859$\pm$0.049} & \textbf{0.565$\pm$0.063} & \textbf{0.628$\pm$0.062} \\
+ &  & A & \textbf{0.693$\pm$0.045} & \textbf{0.183$\pm$0.013} & \textbf{0.731$\pm$0.051} & \textbf{0.822$\pm$0.029} & \textbf{0.835$\pm$0.027} \\
 \midrule
-Ridge (random split) & V & 0.395$\pm$0.046 & 0.215$\pm$0.008 & 0.859$\pm$0.034 & 0.579$\pm$0.042 \\
- & A & 0.677$\pm$0.036 & 0.189$\pm$0.010 & 0.757$\pm$0.042 & 0.810$\pm$0.020 \\
-SVR (random split) & V & 0.414$\pm$0.047 & 0.211$\pm$0.009 & 0.845$\pm$0.035 & 0.599$\pm$0.033 \\
- & A & 0.698$\pm$0.031 & 0.183$\pm$0.009 & 0.732$\pm$0.034 & 0.823$\pm$0.020 \\
+random & Ridge & V & 0.395$\pm$0.046 & 0.215$\pm$0.008 & 0.859$\pm$0.034 & 0.579$\pm$0.042 & 0.633$\pm$0.036 \\
+ &  & A & 0.677$\pm$0.036 & 0.189$\pm$0.010 & 0.757$\pm$0.042 & 0.810$\pm$0.020 & 0.825$\pm$0.022 \\
+ & SVR & V & 0.414$\pm$0.047 & 0.211$\pm$0.009 & 0.845$\pm$0.035 & 0.599$\pm$0.033 & 0.648$\pm$0.033 \\
+ &  & A & 0.698$\pm$0.031 & 0.183$\pm$0.009 & 0.732$\pm$0.034 & 0.823$\pm$0.020 & 0.838$\pm$0.019 \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
