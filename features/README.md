@@ -23,3 +23,14 @@ python features/extract_mert.py --audio data/raw/DEAM_audio --labels data/interi
 - On a CUDA machine, install the CUDA build of torch first (https://pytorch.org/get-started/locally/).
 - `--random-init --out cache/mert95m_random` builds the H2b null model, after the report.
 - Tested on 2026-11-21 with torch 2.11.0+cu128, transformers 4.57.6 and an RTX 3070 Laptop GPU. transformers 5.x breaks MERT's remote code: `hidden_states` comes back as `None`. That is why requirements pins `<5`.
+
+## openSMILE aggregation
+
+```bash
+python features/aggregate_opensmile.py --features data/raw/features/features \
+    --metadata-2013 data/raw/metadata/metadata/metadata_2013.csv
+```
+
+- Output: `cache/opensmile/clip_features.parquet` (1,744 × 520: mean and std of the 260 descriptors) plus `meta.json`.
+- **2013 clips must be cropped.** For the 744 clips of 2013 DEAM's feature files cover the *full song* (up to 585 s), while the audio and the ratings cover a 45 s excerpt. The script keeps only the frames of that excerpt, using `start of the segment (min.sec)` from `metadata_2013.csv` (`1.29` = 89 s, `0.2` = 20 s). The offsets were checked on 21 clips by matching the excerpt's RMS energy to the full-song features (all within 0.5 s).
+- Without `--metadata-2013` the 2013 clips are aggregated over the full song; this is only kept as an ablation.

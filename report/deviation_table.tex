@@ -1,0 +1,69 @@
+% DRAFT deviation table (Efe): changes since the approved proposal, each with
+% its reason. Needs \usepackage{booktabs,tabularx} in the preamble.
+\begin{table*}[t]
+\centering
+\caption{Deviations from the approved proposal and their justification.}
+\label{tab:deviations}
+\footnotesize
+\begin{tabularx}{\textwidth}{@{}p{2.6cm}XXp{2.2cm}@{}}
+\toprule
+\textbf{Aspect} & \textbf{Proposal} & \textbf{Now, and why} & \textbf{Trigger} \\
+\midrule
+Meaning of $\sigma$ &
+$\sigma$ predicted by the NLL head expected to track listener disagreement (H2). &
+$\sigma$ is defined as the predicted error of the model on the \emph{mean} rating
+(model error plus averaging noise $\approx s^2/n$), not the spread of individual
+listeners. $\rho(\sigma,s)$ is kept only as a descriptive analysis. H2 is split
+into H2a (calibration, $\sigma$ vs.\ actual error), H2b (how measurable $s$ is)
+and H2c (a head trained on individual ratings, after the report). &
+Instructor feedback; Watcharasupat \emph{et al.}~\cite{watcharasupat2025} \\
+Individual ratings &
+Not considered. &
+The data audit found per-rater static ratings (10--20 raters per clip, 187 raters),
+which enables reliability ceilings now and explicit modelling of the rating
+distribution (H2c) later. &
+Instructor feedback; data audit \\
+Split protocol &
+One artist-disjoint 70/15/15 split, three seeds, bootstrap over test songs. &
+Artist-grouped, quadrant-stratified 10-fold CV; fold $k{+}1$ is validation.
+Every clip is tested exactly once, so uncertainty analyses use all 1{,}744
+out-of-fold predictions instead of $\approx$262, and models are compared by
+paired per-fold differences. &
+Small dataset; \cite{bouthillier2021} \\
+Success thresholds &
+Fixed $R^2$ targets (e.g.\ C1: $R^2_V\geq0.30$, $R^2_A\geq0.60$; C2: $R^2_V\geq0.45$, $R^2_A\geq0.68$). &
+C1 becomes a sanity check reported with its spread, not a pass/fail gate. The
+primary H1 criterion is relative: the pretrained encoder must beat openSMILE
+\emph{with the same head} on both dimensions. &
+Instructor feedback (thresholds optimistic under artist-disjoint CV) \\
+Same-head comparison &
+SVR on openSMILE vs.\ MLP on MERT. &
+Ridge and MLP heads are trained on both openSMILE and MERT so that the
+representation effect is not confounded with the head; SVR is reported as an
+additional baseline. &
+Methodological \\
+openSMILE excerpt &
+DEAM features used as supplied. &
+For the 744 clips of 2013 the supplied feature files cover the \emph{full song}
+(up to 585\,s) while audio and ratings cover a 45\,s excerpt. Features are now
+cropped to the excerpt using the segment start in the 2013 metadata (offsets
+verified against the audio energy). &
+Found during baseline work \\
+2013 static labels &
+Labels used as supplied. &
+For the 744 clips of 2013 the static valence and arousal columns are swapped
+relative to the dynamic annotations ($r\approx0.95$ crossed vs.\ $\approx0.57$
+matched; 2014 is consistent) and to loudness. They are swapped back. &
+Found during baseline work \\
+2015 full songs &
+Secondary out-of-distribution test set (58 songs). &
+Dropped: different annotation protocol and only 5 raters per song. &
+Scope \\
+Scope of the report &
+PANNs, fine-tuning and ensembles in weeks 3--5. &
+PANNs, random-init MERT (null model), layer probe and LP-FT moved after the
+report, following the instructor's ordering of priorities. &
+Instructor feedback \\
+\bottomrule
+\end{tabularx}
+\end{table*}

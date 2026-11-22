@@ -1,0 +1,186 @@
+{
+  "model": "opensmile_svr",
+  "features": "cache/opensmile/clip_features.parquet (520-d, 45 s excerpt)",
+  "head": "svr",
+  "grid": {
+    "C": [
+      0.1,
+      0.3,
+      1,
+      3,
+      10
+    ],
+    "gamma": "gamma_mult/n_features, gamma_mult in [0.25,0.5,1,2]",
+    "epsilon": [
+      0.02,
+      0.05,
+      0.1
+    ]
+  },
+  "selection": "per fold and dimension, min validation RMSE; refit on the 8 training folds",
+  "sigma": null,
+  "scaler": "StandardScaler fitted on training folds",
+  "seed": 0,
+  "chosen": {
+    "0": {
+      "V": {
+        "C": 1.0,
+        "gamma_mult": 0.5,
+        "epsilon": 0.1,
+        "val_rmse": 0.2129296843808184,
+        "at_grid_edge": null
+      },
+      "A": {
+        "C": 3.0,
+        "gamma_mult": 0.25,
+        "epsilon": 0.1,
+        "val_rmse": 0.19297798972268126,
+        "at_grid_edge": null
+      }
+    },
+    "1": {
+      "V": {
+        "C": 1.0,
+        "gamma_mult": 0.25,
+        "epsilon": 0.1,
+        "val_rmse": 0.21126434518046855,
+        "at_grid_edge": null
+      },
+      "A": {
+        "C": 0.3,
+        "gamma_mult": 0.25,
+        "epsilon": 0.02,
+        "val_rmse": 0.178354630116569,
+        "at_grid_edge": null
+      }
+    },
+    "2": {
+      "V": {
+        "C": 1.0,
+        "gamma_mult": 0.25,
+        "epsilon": 0.1,
+        "val_rmse": 0.21265863930212744,
+        "at_grid_edge": null
+      },
+      "A": {
+        "C": 3.0,
+        "gamma_mult": 0.25,
+        "epsilon": 0.1,
+        "val_rmse": 0.17848880947645873,
+        "at_grid_edge": null
+      }
+    },
+    "3": {
+      "V": {
+        "C": 1.0,
+        "gamma_mult": 1.0,
+        "epsilon": 0.05,
+        "val_rmse": 0.21382916133176638,
+        "at_grid_edge": null
+      },
+      "A": {
+        "C": 1.0,
+        "gamma_mult": 0.25,
+        "epsilon": 0.1,
+        "val_rmse": 0.17871000759315642,
+        "at_grid_edge": null
+      }
+    },
+    "4": {
+      "V": {
+        "C": 1.0,
+        "gamma_mult": 2.0,
+        "epsilon": 0.02,
+        "val_rmse": 0.20899380911073634,
+        "at_grid_edge": null
+      },
+      "A": {
+        "C": 1.0,
+        "gamma_mult": 0.25,
+        "epsilon": 0.02,
+        "val_rmse": 0.17733335259109942,
+        "at_grid_edge": null
+      }
+    },
+    "5": {
+      "V": {
+        "C": 1.0,
+        "gamma_mult": 0.25,
+        "epsilon": 0.1,
+        "val_rmse": 0.20915034126609944,
+        "at_grid_edge": null
+      },
+      "A": {
+        "C": 0.3,
+        "gamma_mult": 0.5,
+        "epsilon": 0.1,
+        "val_rmse": 0.174911794938236,
+        "at_grid_edge": null
+      }
+    },
+    "6": {
+      "V": {
+        "C": 0.3,
+        "gamma_mult": 0.25,
+        "epsilon": 0.02,
+        "val_rmse": 0.19714708039419224,
+        "at_grid_edge": null
+      },
+      "A": {
+        "C": 1.0,
+        "gamma_mult": 0.25,
+        "epsilon": 0.1,
+        "val_rmse": 0.1756334366289049,
+        "at_grid_edge": null
+      }
+    },
+    "7": {
+      "V": {
+        "C": 3.0,
+        "gamma_mult": 0.25,
+        "epsilon": 0.1,
+        "val_rmse": 0.20519216804353965,
+        "at_grid_edge": null
+      },
+      "A": {
+        "C": 3.0,
+        "gamma_mult": 0.25,
+        "epsilon": 0.1,
+        "val_rmse": 0.18895240624091264,
+        "at_grid_edge": null
+      }
+    },
+    "8": {
+      "V": {
+        "C": 3.0,
+        "gamma_mult": 0.25,
+        "epsilon": 0.1,
+        "val_rmse": 0.21657233653382654,
+        "at_grid_edge": null
+      },
+      "A": {
+        "C": 1.0,
+        "gamma_mult": 0.5,
+        "epsilon": 0.1,
+        "val_rmse": 0.186486423546102,
+        "at_grid_edge": null
+      }
+    },
+    "9": {
+      "V": {
+        "C": 1.0,
+        "gamma_mult": 0.5,
+        "epsilon": 0.1,
+        "val_rmse": 0.19172225808338056,
+        "at_grid_edge": null
+      },
+      "A": {
+        "C": 1.0,
+        "gamma_mult": 0.25,
+        "epsilon": 0.1,
+        "val_rmse": 0.1689926549237302,
+        "at_grid_edge": null
+      }
+    }
+  }
+}
