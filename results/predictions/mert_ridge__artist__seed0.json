@@ -1,0 +1,178 @@
+{
+  "model": "mert_ridge",
+  "features": "cache/mert95m (MERT-v1-95M, 24 kHz, 5 s windows, window-mean, 13 layers)",
+  "head": "ridge",
+  "alphas": [
+    0.1,
+    0.1778279410038923,
+    0.31622776601683794,
+    0.5623413251903491,
+    1.0,
+    1.7782794100389228,
+    3.1622776601683795,
+    5.623413251903491,
+    10.0,
+    17.78279410038923,
+    31.622776601683793,
+    56.23413251903491,
+    100.0,
+    177.82794100389228,
+    316.22776601683796,
+    562.341325190349,
+    1000.0,
+    1778.2794100389228,
+    3162.2776601683795,
+    5623.413251903491,
+    10000.0,
+    17782.794100389227,
+    31622.776601683792,
+    56234.13251903491,
+    100000.0
+  ],
+  "selection": "per fold and dimension, layer x alpha by min validation RMSE; refit on the 8 training folds",
+  "sigma": null,
+  "scaler": "StandardScaler fitted on training folds, per layer",
+  "seed": 0,
+  "chosen": {
+    "0": {
+      "V": {
+        "layer": 6,
+        "alpha": 1778.2794100389228,
+        "val_rmse": 0.16914041020926912,
+        "at_alpha_edge": false
+      },
+      "A": {
+        "layer": 6,
+        "alpha": 1000.0,
+        "val_rmse": 0.15057679639623384,
+        "at_alpha_edge": false
+      }
+    },
+    "1": {
+      "V": {
+        "layer": 4,
+        "alpha": 316.22776601683796,
+        "val_rmse": 0.1628084445987172,
+        "at_alpha_edge": false
+      },
+      "A": {
+        "layer": 4,
+        "alpha": 1778.2794100389228,
+        "val_rmse": 0.17270439005530325,
+        "at_alpha_edge": false
+      }
+    },
+    "2": {
+      "V": {
+        "layer": 3,
+        "alpha": 5623.413251903491,
+        "val_rmse": 0.18257647878850294,
+        "at_alpha_edge": false
+      },
+      "A": {
+        "layer": 6,
+        "alpha": 1000.0,
+        "val_rmse": 0.15694760449129647,
+        "at_alpha_edge": false
+      }
+    },
+    "3": {
+      "V": {
+        "layer": 6,
+        "alpha": 177.82794100389228,
+        "val_rmse": 0.1638178715614149,
+        "at_alpha_edge": false
+      },
+      "A": {
+        "layer": 7,
+        "alpha": 177.82794100389228,
+        "val_rmse": 0.16033263634303854,
+        "at_alpha_edge": false
+      }
+    },
+    "4": {
+      "V": {
+        "layer": 7,
+        "alpha": 562.341325190349,
+        "val_rmse": 0.19325674263996015,
+        "at_alpha_edge": false
+      },
+      "A": {
+        "layer": 5,
+        "alpha": 1778.2794100389228,
+        "val_rmse": 0.15648050256151608,
+        "at_alpha_edge": false
+      }
+    },
+    "5": {
+      "V": {
+        "layer": 6,
+        "alpha": 562.341325190349,
+        "val_rmse": 0.16648135401497163,
+        "at_alpha_edge": false
+      },
+      "A": {
+        "layer": 6,
+        "alpha": 177.82794100389228,
+        "val_rmse": 0.1616065813693707,
+        "at_alpha_edge": false
+      }
+    },
+    "6": {
+      "V": {
+        "layer": 7,
+        "alpha": 562.341325190349,
+        "val_rmse": 0.16987985000013314,
+        "at_alpha_edge": false
+      },
+      "A": {
+        "layer": 7,
+        "alpha": 1000.0,
+        "val_rmse": 0.15104659120852446,
+        "at_alpha_edge": false
+      }
+    },
+    "7": {
+      "V": {
+        "layer": 4,
+        "alpha": 562.341325190349,
+        "val_rmse": 0.16961013269908262,
+        "at_alpha_edge": false
+      },
+      "A": {
+        "layer": 8,
+        "alpha": 1000.0,
+        "val_rmse": 0.1514249929337558,
+        "at_alpha_edge": false
+      }
+    },
+    "8": {
+      "V": {
+        "layer": 6,
+        "alpha": 1778.2794100389228,
+        "val_rmse": 0.16006785054143802,
+        "at_alpha_edge": false
+      },
+      "A": {
+        "layer": 6,
+        "alpha": 1000.0,
+        "val_rmse": 0.15290828978901097,
+        "at_alpha_edge": false
+      }
+    },
+    "9": {
+      "V": {
+        "layer": 7,
+        "alpha": 316.22776601683796,
+        "val_rmse": 0.17431981863672316,
+        "at_alpha_edge": false
+      },
+      "A": {
+        "layer": 7,
+        "alpha": 316.22776601683796,
+        "val_rmse": 0.16192870828608866,
+        "at_alpha_edge": false
+      }
+    }
+  }
+}

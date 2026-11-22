@@ -1,0 +1,178 @@
+{
+  "model": "mert_ridge",
+  "features": "cache/mert95m (MERT-v1-95M, 24 kHz, 5 s windows, window-mean, 13 layers)",
+  "head": "ridge",
+  "alphas": [
+    0.1,
+    0.1778279410038923,
+    0.31622776601683794,
+    0.5623413251903491,
+    1.0,
+    1.7782794100389228,
+    3.1622776601683795,
+    5.623413251903491,
+    10.0,
+    17.78279410038923,
+    31.622776601683793,
+    56.23413251903491,
+    100.0,
+    177.82794100389228,
+    316.22776601683796,
+    562.341325190349,
+    1000.0,
+    1778.2794100389228,
+    3162.2776601683795,
+    5623.413251903491,
+    10000.0,
+    17782.794100389227,
+    31622.776601683792,
+    56234.13251903491,
+    100000.0
+  ],
+  "selection": "per fold and dimension, layer x alpha by min validation RMSE; refit on the 8 training folds",
+  "sigma": null,
+  "scaler": "StandardScaler fitted on training folds, per layer",
+  "seed": 0,
+  "chosen": {
+    "0": {
+      "V": {
+        "layer": 5,
+        "alpha": 562.341325190349,
+        "val_rmse": 0.1983833737606924,
+        "at_alpha_edge": false
+      },
+      "A": {
+        "layer": 7,
+        "alpha": 1000.0,
+        "val_rmse": 0.16217196392346736,
+        "at_alpha_edge": false
+      }
+    },
+    "1": {
+      "V": {
+        "layer": 4,
+        "alpha": 562.341325190349,
+        "val_rmse": 0.17612909405638916,
+        "at_alpha_edge": false
+      },
+      "A": {
+        "layer": 5,
+        "alpha": 562.341325190349,
+        "val_rmse": 0.15807196603284437,
+        "at_alpha_edge": false
+      }
+    },
+    "2": {
+      "V": {
+        "layer": 7,
+        "alpha": 562.341325190349,
+        "val_rmse": 0.17134092565646733,
+        "at_alpha_edge": false
+      },
+      "A": {
+        "layer": 6,
+        "alpha": 1778.2794100389228,
+        "val_rmse": 0.14622314834668615,
+        "at_alpha_edge": false
+      }
+    },
+    "3": {
+      "V": {
+        "layer": 6,
+        "alpha": 1778.2794100389228,
+        "val_rmse": 0.17842324338435478,
+        "at_alpha_edge": false
+      },
+      "A": {
+        "layer": 5,
+        "alpha": 1000.0,
+        "val_rmse": 0.15276059860632696,
+        "at_alpha_edge": false
+      }
+    },
+    "4": {
+      "V": {
+        "layer": 7,
+        "alpha": 1000.0,
+        "val_rmse": 0.1798709299816797,
+        "at_alpha_edge": false
+      },
+      "A": {
+        "layer": 3,
+        "alpha": 100.0,
+        "val_rmse": 0.1677480075154767,
+        "at_alpha_edge": false
+      }
+    },
+    "5": {
+      "V": {
+        "layer": 8,
+        "alpha": 316.22776601683796,
+        "val_rmse": 0.16786507779335483,
+        "at_alpha_edge": false
+      },
+      "A": {
+        "layer": 6,
+        "alpha": 562.341325190349,
+        "val_rmse": 0.15018774542781893,
+        "at_alpha_edge": false
+      }
+    },
+    "6": {
+      "V": {
+        "layer": 7,
+        "alpha": 3162.2776601683795,
+        "val_rmse": 0.15681430067911298,
+        "at_alpha_edge": false
+      },
+      "A": {
+        "layer": 8,
+        "alpha": 562.341325190349,
+        "val_rmse": 0.14606960983442865,
+        "at_alpha_edge": false
+      }
+    },
+    "7": {
+      "V": {
+        "layer": 6,
+        "alpha": 562.341325190349,
+        "val_rmse": 0.1666116885156968,
+        "at_alpha_edge": false
+      },
+      "A": {
+        "layer": 6,
+        "alpha": 1000.0,
+        "val_rmse": 0.16458209180519368,
+        "at_alpha_edge": false
+      }
+    },
+    "8": {
+      "V": {
+        "layer": 6,
+        "alpha": 562.341325190349,
+        "val_rmse": 0.1707303970401972,
+        "at_alpha_edge": false
+      },
+      "A": {
+        "layer": 8,
+        "alpha": 316.22776601683796,
+        "val_rmse": 0.1702828964555295,
+        "at_alpha_edge": false
+      }
+    },
+    "9": {
+      "V": {
+        "layer": 6,
+        "alpha": 1000.0,
+        "val_rmse": 0.15986558916536808,
+        "at_alpha_edge": false
+      },
+      "A": {
+        "layer": 8,
+        "alpha": 1778.2794100389228,
+        "val_rmse": 0.1521572187937335,
+        "at_alpha_edge": false
+      }
+    }
+  }
+}
