@@ -1,6 +1,23 @@
 # Shared data contracts
 
-Everything a workstream hands to another goes through one of these three files. Change a contract only by a PR that everyone has seen.
+Everything a workstream hands to another goes through one of these files. Change a contract only by a PR that everyone has seen.
+
+## Label file (of record)
+
+**Path:** `data/interim/labels_fixed.csv` (local, git-ignored). Every model, metric and figure uses this file.
+
+How it is built:
+
+```bash
+python data/audit/audit_deam.py --raw data/raw
+python data/audit/check_va_swap.py --raw data/raw --fix --labels data/interim/labels.csv --out data/interim/labels_fixed.csv
+```
+
+- **`labels.csv`:** the audit output. It keeps the orientation DEAM supplies, in which the 2013 static valence and arousal are swapped.
+- **`labels_fixed.csv`:** swaps the 2013 batch back (744 clips, flag `va_swap_fixed`). The swap is detected against the time-averaged dynamic annotations.
+- **Rater-adjusted s:** `s_V_adj` and `s_A_adj` are computed by the audit in corrected orientation, so they are correct in `labels_fixed.csv`.
+- **Do not train on `labels.csv`.** It is only an intermediate file.
+- **Folds:** the fold file was stratified on the quadrants of `labels.csv`, i.e. before the swap was found. For the 2013 clips, quadrants 2 and 4 are therefore exchanged in the stratification key. Integrity is unaffected: no fold's quadrant share deviates by more than 0.10 under either label version. The folds are kept as they are, so that all results stay comparable.
 
 ## Fold file
 

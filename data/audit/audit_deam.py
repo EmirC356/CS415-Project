@@ -348,6 +348,36 @@ def rater_analysis(rr: pd.DataFrame, kept: pd.DataFrame, problems: list[str],
     return out
 
 
+def detect_va_swap(raw: Path, kept: pd.DataFrame) -> tuple[list, list[str]]:
+    """Batches whose static V/A are swapped relative to the dynamic annotations.
+
+    Same test as data/audit/check_va_swap.py: per batch, Pearson r of the static
+    means with the time-averaged dynamic annotations, matched vs crossed.
+    """
+    from check_va_swap import dynamic_means  # same folder
+    dyn = dynamic_means(raw)
+    k = kept.set_index(kept["song_id"].astype(int))
+    out, swapped = [], []
+    for b, g in k.groupby("batch"):
+        d = dyn.reindex(g.index)
+        r = lambda a, c: g[a].corr(d[c])
+        vv, va, aa, av = r("mu_V_raw", "V"), r("mu_V_raw", "A"), r("mu_A_raw", "A"), r("mu_A_raw", "V")
+        sw = (va + av) > (vv + aa)
+        out.append(f"| {b} | {len(g)} | {vv:.3f} | {va:.3f} | {aa:.3f} | {av:.3f} | "
+                   f"{'**swapped**' if sw else 'consistent'} |")
+        if sw:
+            swapped.append(b)
+    return swapped, out
+
+
+def swap_va(df: pd.DataFrame, ids: set, pairs: list[tuple[str, str]]) -> pd.DataFrame:
+    out = df.copy()
+    m = out["song_id"].astype(int).isin(ids)
+    for a, b in pairs:
+        out.loc[m, [a, b]] = out.loc[m, [b, a]].to_numpy()
+    return out
+
+
 def ids_in(dirpath_glob: list[Path], exts: tuple[str, ...]) -> set[int]:
     ids = set()
     for p in dirpath_glob:
@@ -411,6 +441,9 @@ def run(raw: Path, out_md: Path, out_labels: Path) -> int:
         problems.append("2013/2014 batch flag unavailable")
 
     section("Label values (1-9 scale)")
+    lines.append("(As supplied: for the 2013 batch V and A are swapped, see the rater section. "
+                 "The ranges below therefore mix both dimensions for 744 clips.)")
+    lines.append("")
     lines.append("| column | missing | min | max | mean |")
     lines.append("|---|---|---|---|---|")
     for c in ["mu_V_raw", "s_V_raw", "mu_A_raw", "s_A_raw"]:
@@ -443,7 +476,28 @@ def run(raw: Path, out_md: Path, out_labels: Path) -> int:
         if rr.empty:
             lines.append("- per-rater file has no usable rows for the kept clips")
         else:
-            lines += rater_analysis(rr, kept, problems, n_splits=500)
+            # 2013 static V/A are swapped in DEAM (found by Efe, check_va_swap.py);
+            # the per-rater file carries the same swap. Reliability and the
+            # rater-adjusted sd are computed on corrected orientation, so each
+            # dimension really is one dimension. labels.csv itself keeps the
+            # as-supplied orientation; check_va_swap.py --fix turns it into
+            # labels_fixed.csv, the label file of record.
+            swapped, swap_rows = detect_va_swap(raw, kept)
+            lines.append("")
+            lines.append("Static vs. time-averaged dynamic labels (Pearson r), per batch:")
+            lines.append("")
+            lines.append("| batch | n | V~dynV | V~dynA | A~dynA | A~dynV | verdict |")
+            lines.append("|---|---|---|---|---|---|---|")
+            lines += swap_rows
+            swap_ids = set(kept.loc[kept["batch"].isin(swapped), "song_id"].astype(int))
+            if swap_ids:
+                lines.append("")
+                lines.append(f"- batches with swapped static V/A: {swapped} ({len(swap_ids)} clips). "
+                             "The reliability analysis below uses corrected orientation; "
+                             "labels.csv keeps the supplied orientation (fix with check_va_swap.py).")
+            rr_corr = swap_va(rr, swap_ids, [("V", "A")])
+            kept_corr = swap_va(kept, swap_ids, [("mu_V_raw", "mu_A_raw"), ("s_V_raw", "s_A_raw")])
+            lines += rater_analysis(rr_corr, kept_corr, problems, n_splits=500)
             n = rr.groupby("song_id").size()
             kept["n_raters"] = kept["song_id"].astype(int).map(n)
             # Label source (decision Q3c, 02 Tur 10): mu from the averaged file,
@@ -463,9 +517,11 @@ def run(raw: Path, out_md: Path, out_labels: Path) -> int:
                 kept[f"s_{d}_raw"] = s_r.where(s_r.notna(), kept[f"s_{d}_raw"])
             lines.append("- s_V, s_A in labels.csv are per-rater sds (ddof=1); the averaged-file "
                          "values are kept as s_V_file, s_A_file")
-            adj = adjust_raters(rr, scale=True)
-            for d in "VA":
-                kept[f"s_{d}_adj_raw"] = sid.map(adj.groupby("song_id")[d].std(ddof=1))
+            adj = adjust_raters(rr_corr, scale=True)
+            s_adj = {d: sid.map(adj.groupby("song_id")[d].std(ddof=1)) for d in "VA"}
+            back = sid.isin(swap_ids)       # return to the supplied orientation
+            kept["s_V_adj_raw"] = s_adj["V"].where(~back, s_adj["A"])
+            kept["s_A_adj_raw"] = s_adj["A"].where(~back, s_adj["V"])
             lines.append("- s_V_adj, s_A_adj: per-clip sd after removing rater tendency and scale "
                          "(fitted on all clips; models that use it as a target must refit the "
                          "rater effects on training folds only)")

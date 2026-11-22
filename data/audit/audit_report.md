@@ -20,6 +20,8 @@
 
 ## Label values (1-9 scale)
 
+(As supplied: for the 2013 batch V and A are swapped, see the rater section. The ranges below therefore mix both dimensions for 744 clips.)
+
 | column | missing | min | max | mean |
 |---|---|---|---|---|
 | mu_V_raw | 0 | 1.600 | 8.400 | 4.903 |
@@ -35,14 +37,23 @@
 
 - files under an 'each rater' folder: 3606
 - **per-rater static files found: 2** `DEAM_Annotations/annotations/annotations per each rater/song_level/static_annotations_songs_1_2000.csv`, `DEAM_Annotations/annotations/annotations per each rater/song_level/static_annotations_songs_2000_2058.csv`
+
+Static vs. time-averaged dynamic labels (Pearson r), per batch:
+
+| batch | n | V~dynV | V~dynA | A~dynA | A~dynV | verdict |
+|---|---|---|---|---|---|---|
+| 2013 | 744 | 0.575 | 0.956 | 0.570 | 0.949 | **swapped** |
+| 2014 | 1000 | 0.912 | 0.591 | 0.942 | 0.570 | consistent |
+
+- batches with swapped static V/A: [2013] (744 clips). The reliability analysis below uses corrected orientation; labels.csv keeps the supplied orientation (fix with check_va_swap.py).
 - raters per clip: min 10, median 10, max 20; clips with n < 10: 0; distinct raters: 187
 - kept clips without per-rater rows: 0
 - rating values seen: V [1, 2, 3, 4, 5, 6, 7, 8, 9], A [1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 | dim | max abs(mean_raters - mu_file) | max abs(sd_ddof0 - s_file) | max abs(sd_ddof1 - s_file) |
 |---|---|---|---|
-| V | 0.005 | 0.139 | 0.157 |
-| A | 0.620 | 0.092 | 0.139 |
+| V | 0.004 | 0.139 | 0.157 |
+| A | 0.620 | 0.092 | 0.147 |
 
 (The averaged file is rounded; differences around 0.05 are rounding. The smaller sd column shows which std definition the file uses.)
 
@@ -50,19 +61,19 @@ Split-half reliability (500 random 5/5 splits of each clip's raters; clips with 
 
 | variant | mean_V | mean_A | sd_V | sd_A | mad_V | mad_A |
 |---|---|---|---|---|---|---|
-| raw | 0.802 | 0.847 | 0.043 | -0.011 | 0.069 | 0.021 |
-| rater bias removed | 0.841 | 0.888 | 0.101 | 0.054 | 0.124 | 0.074 |
-| rater bias + scale removed | 0.832 | 0.881 | 0.190 | 0.145 | 0.193 | 0.146 |
-| bias + scale, cross-fitted (6 half-swaps) | 0.826 | 0.878 | 0.197 | 0.150 | 0.199 | 0.152 |
+| raw | 0.786 | 0.851 | 0.000 | 0.044 | 0.049 | 0.052 |
+| rater bias removed | 0.828 | 0.893 | 0.128 | 0.029 | 0.161 | 0.034 |
+| rater bias + scale removed | 0.810 | 0.890 | 0.211 | 0.125 | 0.224 | 0.114 |
+| bias + scale, cross-fitted (6 half-swaps) | 0.804 | 0.886 | 0.214 | 0.135 | 0.227 | 0.126 |
 
 Ceiling for any correlation with s = sqrt(reliability): raw s about 0.2, rater-adjusted s about 0.4 (decision Q6c: report both, raw s primary).
 
-- s_V: between-clip variance 0.165, expected sampling variance 0.152, implied reliability 0.077 (normal-theory approximation)
-- s_A: between-clip variance 0.150, expected sampling variance 0.141, implied reliability 0.060 (normal-theory approximation)
+- s_V: between-clip variance 0.161, expected sampling variance 0.145, implied reliability 0.094 (normal-theory approximation)
+- s_A: between-clip variance 0.155, expected sampling variance 0.147, implied reliability 0.053 (normal-theory approximation)
 - Note: Spearman(mu, s) in the label section is computed from the same raters; on a bounded scale a sample mean near the ends forces a small sample sd, so that correlation is partly mechanical. Split halves remove this coupling.
 
-- noise ceiling for R²(V) of the mean rating: 0.802 (1 - mean(s²/n) / Var(mu); rater noise only)
-- noise ceiling for R²(A) of the mean rating: 0.848 (1 - mean(s²/n) / Var(mu); rater noise only)
+- noise ceiling for R²(V) of the mean rating: 0.786 (1 - mean(s²/n) / Var(mu); rater noise only)
+- noise ceiling for R²(A) of the mean rating: 0.851 (1 - mean(s²/n) / Var(mu); rater noise only)
 - A: mu replaced by the per-rater mean for clip(s) [1968] ([6.18] -> [6.8])
 - s_V, s_A in labels.csv are per-rater sds (ddof=1); the averaged-file values are kept as s_V_file, s_A_file
 - s_V_adj, s_A_adj: per-clip sd after removing rater tendency and scale (fitted on all clips; models that use it as a target must refit the rater effects on training folds only)
@@ -83,5 +94,5 @@ Ceiling for any correlation with s = sqrt(reliability): raw s about 0.2, rater-a
 
 ## Summary
 
-- PROBLEM: A: 1 clip(s) whose per-rater mean differs from the averaged file by > 0.06: {1968: 0.62} (averaged-file value kept)
+- PROBLEM: A: 1 clip(s) whose per-rater mean differs from the averaged file by > 0.06: {1968: 0.62} (replaced by the per-rater mean, decision Q3c)
 - labels written to `data/interim/labels.csv` (1744 rows)
