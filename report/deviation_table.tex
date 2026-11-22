@@ -12,12 +12,12 @@ Meaning of $\sigma$ & $\sigma$ expected to track listener disagreement (H2) &
 $\sigma$ = predicted error on the mean rating; relation to listener spread $s$ only descriptive; H2 split into calibration (H2a), measurability of $s$ (H2b), individual-rating head (H2c) &
 Instructor feedback; \cite{watcharasupat2025} \\
 Individual ratings & Not used & Per-rater ratings found (10--20 per clip): reliability ceilings now, rating-distribution head later & Feedback; data audit \\
-Split & One artist-disjoint 70/15/15 split, 3 seeds & Artist-grouped, quadrant-stratified 10-fold CV; every clip tested once; paired per-fold tests & Small dataset; \cite{bouthillier2021} \\
+Split & One artist-disjoint 70/15/15 split, 3 seeds & Artist-grouped, quadrant-stratified 10-fold CV; every clip tested once; paired per-fold tests & Small dataset; fair comparison \\
 Success criteria & Fixed $R^2$ thresholds & Baseline is a sanity check; H1 decided relatively (same head, MERT vs.\ openSMILE) & Feedback (thresholds optimistic) \\
 Heads & SVR on openSMILE vs.\ MLP on MERT & Ridge and MLP on both representations; SVR as extra baseline & Separate representation from head \\
 2013 data & Used as supplied & Static V/A swapped back; openSMILE cropped to the rated 45\,s excerpt & Found in this work \\
 2015 songs & Secondary test set & Dropped (different protocol, 5 raters) & Scope \\
-Order of work & PANNs, fine-tuning in weeks 3--5 & PANNs, LP-FT and probes after the report & Feedback priorities \\
+Order of work & General-audio encoder, fine-tuning in weeks 3--5 & General-audio encoder, LP-FT and probes after the report & Feedback priorities \\
 \bottomrule
 \end{tabularx}
 \end{table*}

@@ -1,9 +1,9 @@
-\begin{table}[t]
+\begin{table*}[t]
 \centering
 \caption{Heteroscedastic head vs.\ the constant-$\sigma$ reference on openSMILE, artist-grouped folds (seed ensemble of 5). Mean $\pm$ SD over the 10 test folds; $\rho$ is Spearman on all pooled out-of-fold predictions. Ideal PICP is $0.68$/$0.95$; for the references $\rho\approx0$ because $\sigma$ is constant within each fold.}
 \label{tab:hetero}
 \footnotesize
-\setlength{\tabcolsep}{2.5pt}
+\setlength{\tabcolsep}{5pt}
 \begin{tabular}{@{}llcccccc@{}}
 \toprule
 Model & D & $R^2\uparrow$ & PICP$_{68}$ & PICP$_{95}$ & NLL$\downarrow$ & $\rho(\sigma,|e|)$ & $\rho(\sigma,s)$ \\
@@ -21,4 +21,4 @@ Hetero. MLP, $\beta{=}0.5$ & V & 0.353$\pm$0.087 & 0.656$\pm$0.044 & 0.939$\pm$0
  & A & 0.671$\pm$0.042 & 0.682$\pm$0.039 & 0.949$\pm$0.028 & $-$0.249$\pm$0.064 & 0.11 & 0.04 \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}

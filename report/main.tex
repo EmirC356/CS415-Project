@@ -42,42 +42,39 @@ raises $\R$ to $0.56$/$0.75$ (valence/arousal), better in 10 of 10 folds.
 \section{Problem and Motivation}
 %======================================================================
 We predict two continuous emotion scores per music clip, \emph{valence}
-(negative to positive) and \emph{arousal} (calm to energetic), the axes of
-Russell's circumplex model~\cite{russell1980}. Such scores support
-emotion-aware music discovery. The task is hard for two reasons: labelled data
-are scarce (DEAM has 1{,}744 rated 45\,s clips~\cite{aljanaki2017}), and
-listeners disagree. Our aims, in the order requested in the feedback, are
-(i) to show that a frozen pretrained encoder (MERT~\cite{li2024mert}, later
-PANNs~\cite{kong2020}) beats hand-crafted openSMILE features~\cite{eyben2010}
-with the same regression head, and (ii) to establish precisely what the
+(negative to positive) and \emph{arousal} (calm to energetic). Such scores
+support emotion-aware music discovery. The task is hard for two reasons:
+labelled data are scarce (DEAM has 1{,}744 rated 45\,s
+clips~\cite{aljanaki2017}), and listeners disagree. Our aims, in the order
+requested in the feedback, are (i) to show that a frozen pretrained encoder
+(MERT~\cite{li2024mert}, later also a general-audio encoder) beats
+hand-crafted openSMILE features~\cite{eyben2010} with the same regression
+head, and (ii) to establish precisely what the
 variance of a heteroscedastic head trained with Gaussian negative
 log-likelihood (NLL) represents.
 
 %======================================================================
 \section{Related Work}
 %======================================================================
-Yang \emph{et al.}~\cite{yang2008} framed MER as regression on valence and
-arousal with support vector regression (SVR) on hand-crafted descriptors,
-still the usual baseline. DEAM comes from the MediaEval ``Emotion in Music''
-tasks (2013--2015) and provides static and dynamic ratings plus openSMILE
-features~\cite{aljanaki2017}; on it, Cheuk \emph{et al.}~\cite{cheuk2020}
-report $\R\approx0.32$ (valence) and $0.64$ (arousal) for openSMILE-based
-regressors. Pretrained encoders let us fit only a small head on DEAM:
-PANNs~\cite{kong2020} are trained for general audio tagging, while
+DEAM comes from the MediaEval ``Emotion in Music'' tasks (2013--2015) and
+provides static and dynamic valence and arousal ratings together with
+openSMILE features~\cite{aljanaki2017}. Regression with support vector
+regression (SVR) on such hand-crafted features is the usual baseline; on DEAM,
+Cheuk \emph{et al.}~\cite{cheuk2020} report $\R\approx0.32$ (valence) and
+$0.64$ (arousal) for an SVR on openSMILE features, and improve on it with a
+triplet network. Pretrained encoders let us fit only a small head on DEAM.
 MERT~\cite{li2024mert} is self-supervised on music and reports strong emotion
-results with frozen features. Their evaluations mostly use random splits, so
-part of the gain may come from recognising artists.
+regression results with frozen features and a small probing head. Results on
+random splits may partly reflect artist or production cues, so we evaluate on
+artist-grouped folds.
 
-Nix and Weigend~\cite{nix1994} introduced networks that predict a mean and a
-variance trained with the Gaussian NLL; Kendall and Gal~\cite{kendall2017}
-separate the noise such a head captures (aleatoric) from model uncertainty
-(epistemic). Seitzer \emph{et al.}~\cite{seitzer2022} show that plain NLL lets
-the variance down-weight hard samples and propose $\beta$-NLL. For MER,
-Watcharasupat \emph{et al.}~\cite{watcharasupat2025} find that models learn
-the mean rating but not how much listeners disagree; we examine why. Finally,
-Bouthillier \emph{et al.}~\cite{bouthillier2021} show that split and seed
-variance often exceed differences between models, which motivates our
-cross-validated, paired comparisons.
+A heteroscedastic network predicts a mean and a variance and is trained with
+the Gaussian NLL. Seitzer \emph{et al.}~\cite{seitzer2022} show that under
+plain NLL the samples a model predicts badly receive relatively small updates,
+which can leave the mean poorly fitted, and they introduce $\beta$-NLL to
+counter this. For MER, Watcharasupat \emph{et
+al.}~\cite{watcharasupat2025} find that models learn the mean rating but not
+how much listeners disagree; we examine why.
 
 %======================================================================
 \section{Data}
@@ -133,15 +130,15 @@ Spearman $\rho(\sigma,|e|)$. All metrics come from one shared script that reads
 prediction files in a common format.
 
 \textbf{Representations.} openSMILE: mean and standard deviation of DEAM's 260
-frame-level descriptors over the excerpt (520-d). MERT-v1-95M: nine 5\,s
+frame-level descriptors over the excerpt (520-d). MERT-v1-95M~\cite{li2024mert}: nine 5\,s
 windows at 24\,kHz (eight for the 9 clips shorter than 45\,s), all 13 layers cached, layer chosen on validation.
 
 \textbf{Variance stability.} The heteroscedastic MLP bounds $\sigma$ softly,
 $\sigma=\sigma_{\min}+(\sigma_{\max}-\sigma_{\min})\,\mathrm{sigmoid}(z)$ with
 $\sigma_{\min}=0.01$ and $\sigma_{\max}=2\,\mathrm{sd}(y_{\text{train}})$,
 avoiding hard clamps that kill gradients. The mean is warmed up with MSE before
-switching to $\beta$-NLL ($\beta=0.5$; $\beta=0$ as comparison); early stopping
-and model selection use plain validation NLL~\cite{seitzer2022}; and the share
+switching to $\beta$-NLL~\cite{seitzer2022} ($\beta=0.5$; $\beta=0$ as comparison); early stopping
+and model selection use the plain validation NLL, not the $\beta$-NLL loss; and the share
 of $\sigma$ near either bound is logged, with $>5\,\%$ flagged as unstable.
 The reference is a constant $\sigma$ equal to the validation RMSE.
 
@@ -222,7 +219,7 @@ Batch ($n$) & $\R_V$ & $\R_A$ & $\R_V$ & $\R_A$ \\
 dimension on validation RMSE (ridge: 25 values of $\alpha$ in $[10^{-1},10^5]$;
 SVR: $C$, $\gamma$, $\epsilon$ grid), and the model was refit on the training
 folds (Table~\ref{tab:baseline}, Figs.~\ref{fig:folds}--\ref{fig:scatter}). The SVR
-reaches $\R=0.38/0.69$, consistent with the $0.32/0.64$ of~\cite{cheuk2020}.
+reaches $\R=0.38/0.69$, consistent with the $0.32/0.64$ reported for an SVR by~\cite{cheuk2020}. Their subset (1{,}724 songs) and split differ from ours, and the paper does not state whether the split separates artists, so this comparison is indicative only.
 It beats ridge on arousal (8/10 folds, Wilcoxon $p=0.049$) but not on valence.
 Random folds raise $\R_V$ by 0.035 but $\R_A$ by only 0.005, so artist
 leakage mainly inflates valence. The noise ceiling of the mean rating is
@@ -277,8 +274,9 @@ A \emph{single} head does not beat the reference. At $\beta=0$ it reaches
 $\R=0.33\pm0.01$/$0.65\pm0.00$ (mean $\pm$ SD over seeds), below ridge, and it
 is over-confident (intervals too narrow: PICP$_{95}=0.92$/$0.93$, NLL $-0.06$/$-0.19$ vs.\ $-0.11$/$-0.24$).
 $\beta=0.5$ is worse still ($\R=0.29$/$0.63$, NLL $0.02$/$-0.12$), i.e.\ in
-our setting it did not improve accuracy. The \emph{5-seed ensemble} (mean of
-the member means; variance = mean member variance plus variance of the means)
+our setting it did not improve accuracy. The \emph{5-seed ensemble}, combined
+as in deep ensembles~\cite{lakshminarayanan2017} (mean of the member means;
+variance = mean member variance plus variance of the means),
 closes the gap: $\R=0.375$/$0.679$, PICP$_{68}=0.66$/$0.70$,
 PICP$_{95}=0.95$/$0.96$, NLL $-0.135$/$-0.267$. Against the ridge reference its NLL is
 better on valence in 8 of 10 folds (Wilcoxon $p=0.014$) and not significantly
@@ -334,7 +332,7 @@ accuracy, is calibrated, and has a lower NLL on valence (owed mostly to the lear
 arousal the gain comes from ensembling), while its $\sigma$ ranks errors only weakly
 ($\rho(\sigma,|e|)\approx0.15$). Next we will (1) train an MLP on MERT and repeat the heteroscedastic head on MERT;
 (2) check whether the valence gain survives on MERT; and
-(3) then add PANNs and a head trained on individual ratings.
+(3) then add a general-audio encoder and a head trained on individual ratings.
 
 \bibliographystyle{IEEEtran}
 \bibliography{refs}
