@@ -1,0 +1,81 @@
+% DRAFT related-work section (Efe). Rewrite in the group's own words before
+% submission -- see docs/framework.md: "the group writes the report in its own words".
+\section{Related Work}
+\label{sec:related}
+
+\subsection{Dimensional music emotion recognition and DEAM}
+Music emotion recognition (MER) either assigns discrete emotion classes or
+places a piece in a continuous space; most recent work follows Russell's
+circumplex model~\cite{russell1980}, in which valence (negative--positive) and
+arousal (calm--energetic) span the plane. Early surveys already identified the
+subjectivity of the labels and the small size of annotated corpora as the main
+obstacles~\cite{kim2010}. Yang \emph{et al.}~\cite{yang2008} cast MER as a
+regression problem on valence and arousal and trained support vector regression
+(SVR) on hand-crafted audio descriptors, which became the standard baseline.
+The MediaEval ``Emotion in Music'' tasks (2013--2015) produced DEAM, the largest
+openly licensed dataset with both static (per-clip) and dynamic (2\,Hz) valence
+and arousal ratings, together with frame-level openSMILE
+features~\cite{aljanaki2017,eyben2010}. Its organisers report that arousal is
+predicted far more reliably than valence, a gap that has persisted in later
+work. G\'omez-Ca\~n\'on \emph{et al.}~\cite{gomezcanon2021} argue that MER
+should move beyond a single ``ground truth'' and treat listener variability and
+reproducible evaluation as first-class concerns, which motivates the
+uncertainty part of this project.
+
+\subsection{Hand-crafted features versus learned representations}
+On DEAM, openSMILE descriptors with linear or kernel regressors remain
+competitive; Cheuk \emph{et al.}~\cite{cheuk2020} report $R^2$ of about 0.32
+(valence) and 0.64 (arousal) for such baselines and improve on them with a
+triplet network. Choi \emph{et al.}~\cite{choi2017} showed that features of a
+convolutional network pretrained on music tagging transfer to emotion
+regression with only a shallow head. This idea has since scaled up.
+PANNs~\cite{kong2020} are CNNs trained on the 2M-clip AudioSet that transfer to
+many audio tasks. Castellon \emph{et al.}~\cite{castellon2021} probed the
+generative model Jukebox with shallow heads and found that its representations
+beat tagging-pretrained ones on emotion regression, among other music
+information retrieval (MIR) tasks. MERT~\cite{li2024mert} is a self-supervised
+music model trained with acoustic and pitch (CQT) teachers; in the MARBLE
+benchmark~\cite{yuan2023marble} frozen MERT layers with a probing head are
+among the strongest representations for emotion regression. Kang and
+Herremans~\cite{kang2025} build on MERT features together with chord and key
+information for unified dimensional and categorical MER. A common thread is
+the \emph{frozen encoder + small head} protocol, which suits small datasets such
+as DEAM and isolates the effect of the representation. A limitation is that
+most of these studies use random (not artist-disjoint) splits, so reported
+gains may partly reflect artist or production cues; we therefore evaluate on
+artist-grouped folds.
+
+\subsection{Heteroscedastic regression}
+Nix and Weigend~\cite{nix1994} proposed networks that output both a mean and a
+variance and are trained with the Gaussian negative log-likelihood (NLL).
+Kendall and Gal~\cite{kendall2017} distinguished the input-dependent noise such
+a head captures (aleatoric) from model uncertainty (epistemic), which a single
+network does not represent; deep ensembles~\cite{lakshminarayanan2017} estimate
+the latter through the spread of independently trained members. Training with
+NLL is known to be fragile: the variance term can down-weight hard examples and
+let the mean underfit. Seitzer \emph{et al.}~\cite{seitzer2022} propose the
+$\beta$-NLL loss, which re-weights each sample by $\sigma^{2\beta}$, and Stirn
+\emph{et al.}~\cite{stirn2023} propose a ``faithful'' variant that keeps the mean
+fit identical to an MSE model. For evaluation, Levi \emph{et
+al.}~\cite{levi2022} show that average calibration can hide poor per-sample
+behaviour and recommend binned reliability diagrams (ENCE), which we adopt.
+
+\subsection{Uncertainty and annotator disagreement in MER}
+The closest work to ours is Watcharasupat \emph{et al.}~\cite{watcharasupat2025},
+who benchmark probabilistic losses, Monte-Carlo dropout and ensembles for MER
+and find that models learn the central tendency of the ratings well but
+largely fail to reproduce the empirical spread of listener responses. Their
+study does not explain \emph{why}. Our project positions itself as a partial
+replication and extension: (i) we make explicit that a variance learned against
+the \emph{mean} rating estimates the model's error on that mean, not the spread
+of individual listeners -- the distinction raised in the instructor's feedback;
+and (ii) we measure how reliably the per-clip listener spread can be estimated
+at all in DEAM before asking a model to predict it.
+
+\subsection{Evaluation practice}
+Bouthillier \emph{et al.}~\cite{bouthillier2021} show that benchmark
+comparisons are dominated by data-split and seed variance, and recommend
+comparing models over many paired splits with a probability-of-improvement
+criterion rather than single-split point estimates. This motivates our
+switch from one 70/15/15 split to artist-grouped 10-fold cross-validation with
+paired per-fold comparisons.

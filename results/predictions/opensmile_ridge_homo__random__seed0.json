@@ -1,0 +1,208 @@
+{
+  "model": "opensmile_ridge_homo",
+  "features": "cache/opensmile/clip_features.parquet (520-d, 45 s excerpt)",
+  "head": "ridge",
+  "grid": [
+    {
+      "alpha": 0.1
+    },
+    {
+      "alpha": 0.1778279410038923
+    },
+    {
+      "alpha": 0.31622776601683794
+    },
+    {
+      "alpha": 0.5623413251903491
+    },
+    {
+      "alpha": 1.0
+    },
+    {
+      "alpha": 1.7782794100389228
+    },
+    {
+      "alpha": 3.1622776601683795
+    },
+    {
+      "alpha": 5.623413251903491
+    },
+    {
+      "alpha": 10.0
+    },
+    {
+      "alpha": 17.78279410038923
+    },
+    {
+      "alpha": 31.622776601683793
+    },
+    {
+      "alpha": 56.23413251903491
+    },
+    {
+      "alpha": 100.0
+    },
+    {
+      "alpha": 177.82794100389228
+    },
+    {
+      "alpha": 316.22776601683796
+    },
+    {
+      "alpha": 562.341325190349
+    },
+    {
+      "alpha": 1000.0
+    },
+    {
+      "alpha": 1778.2794100389228
+    },
+    {
+      "alpha": 3162.2776601683795
+    },
+    {
+      "alpha": 5623.413251903491
+    },
+    {
+      "alpha": 10000.0
+    },
+    {
+      "alpha": 17782.794100389227
+    },
+    {
+      "alpha": 31622.776601683792
+    },
+    {
+      "alpha": 56234.13251903491
+    },
+    {
+      "alpha": 100000.0
+    }
+  ],
+  "selection": "per fold and dimension, min validation RMSE; refit on the 8 training folds",
+  "sigma": "constant per fold and dimension = validation RMSE",
+  "scaler": "StandardScaler fitted on training folds",
+  "seed": 0,
+  "chosen": {
+    "0": {
+      "V": {
+        "alpha": 100.0,
+        "val_rmse": 0.21965114006737216,
+        "at_grid_edge": false
+      },
+      "A": {
+        "alpha": 562.341325190349,
+        "val_rmse": 0.20447703886861213,
+        "at_grid_edge": false
+      }
+    },
+    "1": {
+      "V": {
+        "alpha": 316.22776601683796,
+        "val_rmse": 0.2081177736234707,
+        "at_grid_edge": false
+      },
+      "A": {
+        "alpha": 316.22776601683796,
+        "val_rmse": 0.1677701681970397,
+        "at_grid_edge": false
+      }
+    },
+    "2": {
+      "V": {
+        "alpha": 1778.2794100389228,
+        "val_rmse": 0.2245849726076156,
+        "at_grid_edge": false
+      },
+      "A": {
+        "alpha": 1000.0,
+        "val_rmse": 0.19701431039281977,
+        "at_grid_edge": false
+      }
+    },
+    "3": {
+      "V": {
+        "alpha": 1000.0,
+        "val_rmse": 0.22043836490258872,
+        "at_grid_edge": false
+      },
+      "A": {
+        "alpha": 316.22776601683796,
+        "val_rmse": 0.1867010445765393,
+        "at_grid_edge": false
+      }
+    },
+    "4": {
+      "V": {
+        "alpha": 1000.0,
+        "val_rmse": 0.21383366643878293,
+        "at_grid_edge": false
+      },
+      "A": {
+        "alpha": 316.22776601683796,
+        "val_rmse": 0.1799094845884825,
+        "at_grid_edge": false
+      }
+    },
+    "5": {
+      "V": {
+        "alpha": 316.22776601683796,
+        "val_rmse": 0.21973084195893056,
+        "at_grid_edge": false
+      },
+      "A": {
+        "alpha": 100.0,
+        "val_rmse": 0.1806735832347312,
+        "at_grid_edge": false
+      }
+    },
+    "6": {
+      "V": {
+        "alpha": 177.82794100389228,
+        "val_rmse": 0.1992584500999092,
+        "at_grid_edge": false
+      },
+      "A": {
+        "alpha": 316.22776601683796,
+        "val_rmse": 0.18312671585888274,
+        "at_grid_edge": false
+      }
+    },
+    "7": {
+      "V": {
+        "alpha": 56.23413251903491,
+        "val_rmse": 0.20892058728558568,
+        "at_grid_edge": false
+      },
+      "A": {
+        "alpha": 100.0,
+        "val_rmse": 0.19463934549210657,
+        "at_grid_edge": false
+      }
+    },
+    "8": {
+      "V": {
+        "alpha": 100.0,
+        "val_rmse": 0.21337940931277274,
+        "at_grid_edge": false
+      },
+      "A": {
+        "alpha": 316.22776601683796,
+        "val_rmse": 0.2000954511438019,
+        "at_grid_edge": false
+      }
+    },
+    "9": {
+      "V": {
+        "alpha": 562.341325190349,
+        "val_rmse": 0.20092615737383215,
+        "at_grid_edge": false
+      },
+      "A": {
+        "alpha": 177.82794100389228,
+        "val_rmse": 0.17722896406461214,
+        "at_grid_edge": false
+      }
+    }
+  }
+}

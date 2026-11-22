@@ -1,0 +1,186 @@
+{
+  "model": "opensmile_svr_homo",
+  "features": "cache/opensmile/clip_features.parquet (520-d, 45 s excerpt)",
+  "head": "svr",
+  "grid": {
+    "C": [
+      0.1,
+      0.3,
+      1,
+      3,
+      10
+    ],
+    "gamma": "gamma_mult/n_features, gamma_mult in [0.25,0.5,1,2]",
+    "epsilon": [
+      0.02,
+      0.05,
+      0.1
+    ]
+  },
+  "selection": "per fold and dimension, min validation RMSE; refit on the 8 training folds",
+  "sigma": "constant per fold and dimension = validation RMSE",
+  "scaler": "StandardScaler fitted on training folds",
+  "seed": 0,
+  "chosen": {
+    "0": {
+      "V": {
+        "C": 1.0,
+        "gamma_mult": 0.25,
+        "epsilon": 0.05,
+        "val_rmse": 0.196995691654699,
+        "at_grid_edge": null
+      },
+      "A": {
+        "C": 1.0,
+        "gamma_mult": 0.5,
+        "epsilon": 0.1,
+        "val_rmse": 0.17609008637512116,
+        "at_grid_edge": null
+      }
+    },
+    "1": {
+      "V": {
+        "C": 1.0,
+        "gamma_mult": 0.5,
+        "epsilon": 0.05,
+        "val_rmse": 0.1910221447675789,
+        "at_grid_edge": null
+      },
+      "A": {
+        "C": 1.0,
+        "gamma_mult": 0.25,
+        "epsilon": 0.02,
+        "val_rmse": 0.2092253755055338,
+        "at_grid_edge": null
+      }
+    },
+    "2": {
+      "V": {
+        "C": 0.1,
+        "gamma_mult": 0.25,
+        "epsilon": 0.1,
+        "val_rmse": 0.1969813192666687,
+        "at_grid_edge": null
+      },
+      "A": {
+        "C": 3.0,
+        "gamma_mult": 0.25,
+        "epsilon": 0.1,
+        "val_rmse": 0.1663683250929663,
+        "at_grid_edge": null
+      }
+    },
+    "3": {
+      "V": {
+        "C": 1.0,
+        "gamma_mult": 0.5,
+        "epsilon": 0.05,
+        "val_rmse": 0.2099312253123207,
+        "at_grid_edge": null
+      },
+      "A": {
+        "C": 3.0,
+        "gamma_mult": 0.25,
+        "epsilon": 0.05,
+        "val_rmse": 0.17892917803804895,
+        "at_grid_edge": null
+      }
+    },
+    "4": {
+      "V": {
+        "C": 1.0,
+        "gamma_mult": 0.25,
+        "epsilon": 0.1,
+        "val_rmse": 0.22835569156513114,
+        "at_grid_edge": null
+      },
+      "A": {
+        "C": 1.0,
+        "gamma_mult": 0.25,
+        "epsilon": 0.02,
+        "val_rmse": 0.16307600611203235,
+        "at_grid_edge": null
+      }
+    },
+    "5": {
+      "V": {
+        "C": 0.1,
+        "gamma_mult": 0.5,
+        "epsilon": 0.02,
+        "val_rmse": 0.23450430661323204,
+        "at_grid_edge": null
+      },
+      "A": {
+        "C": 3.0,
+        "gamma_mult": 0.25,
+        "epsilon": 0.1,
+        "val_rmse": 0.19226571139700022,
+        "at_grid_edge": null
+      }
+    },
+    "6": {
+      "V": {
+        "C": 0.3,
+        "gamma_mult": 0.25,
+        "epsilon": 0.05,
+        "val_rmse": 0.21910323654855862,
+        "at_grid_edge": null
+      },
+      "A": {
+        "C": 0.3,
+        "gamma_mult": 0.5,
+        "epsilon": 0.1,
+        "val_rmse": 0.16941303114608156,
+        "at_grid_edge": null
+      }
+    },
+    "7": {
+      "V": {
+        "C": 3.0,
+        "gamma_mult": 0.25,
+        "epsilon": 0.1,
+        "val_rmse": 0.21950087951778524,
+        "at_grid_edge": null
+      },
+      "A": {
+        "C": 3.0,
+        "gamma_mult": 0.5,
+        "epsilon": 0.1,
+        "val_rmse": 0.16518016888535453,
+        "at_grid_edge": null
+      }
+    },
+    "8": {
+      "V": {
+        "C": 3.0,
+        "gamma_mult": 0.25,
+        "epsilon": 0.1,
+        "val_rmse": 0.1975415760137622,
+        "at_grid_edge": null
+      },
+      "A": {
+        "C": 3.0,
+        "gamma_mult": 0.25,
+        "epsilon": 0.1,
+        "val_rmse": 0.16499349901605434,
+        "at_grid_edge": null
+      }
+    },
+    "9": {
+      "V": {
+        "C": 1.0,
+        "gamma_mult": 0.5,
+        "epsilon": 0.1,
+        "val_rmse": 0.2185700499147778,
+        "at_grid_edge": null
+      },
+      "A": {
+        "C": 3.0,
+        "gamma_mult": 0.5,
+        "epsilon": 0.1,
+        "val_rmse": 0.1906791146775278,
+        "at_grid_edge": null
+      }
+    }
+  }
+}
