@@ -58,7 +58,7 @@ def per_fold_nll(df, dim, y):
 
 
 def paired(diff: pd.Series):
-    """diff = reference/oracle NLL minus ensemble NLL is not used; diff = learned - other (negative = learned better)."""
+    """Paired Wilcoxon summary of diff = learned NLL - other NLL per fold (negative = learned better)."""
     return dict(mean=diff.mean(), better=f"{int((diff < 0).sum())}/{len(diff)}", p=stats.wilcoxon(diff).pvalue)
 
 

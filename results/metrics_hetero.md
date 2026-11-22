@@ -1,5 +1,7 @@
 # Heteroscedastic head vs constant-sigma reference (eval/evaluate_v1.py, corrected labels)
 
+Note: the s_adj columns here predate the audit fix (PR #5); current values are in results/metrics_hetero_extra.md (ρ(σ, s_adj) = 0.105/0.084 for β = 0).
+
 seeds: [0, 1, 2, 3, 4], ensemble: True
 
 | opensmile_ridge_homo | V | R2 0.372 | PICP68 0.673 | PICP95 0.949 | NLL -0.109 | rho(sigma,|e|) 0.013 | rho(sigma,s) -0.013 | rho(sigma,s_adj) 0.012 |
