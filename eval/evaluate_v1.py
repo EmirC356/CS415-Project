@@ -52,7 +52,10 @@ def sigma_metrics(y, p, s) -> dict:
 
 
 def load(paths: list[Path], labels: Path) -> pd.DataFrame:
-    lab = pd.read_csv(labels)[["song_id", "mu_V", "mu_A", "s_V", "s_A"]]
+    raw = pd.read_csv(labels)
+    if "va_swap_fixed" not in raw.columns:
+        raise SystemExit(f"{labels}: not the corrected label file; build it with data/audit/check_va_swap.py --fix")
+    lab = raw[["song_id", "mu_V", "mu_A", "s_V", "s_A"]]
     lab = lab.rename(columns={"mu_V": "y_V", "mu_A": "y_A"})
     df = pd.concat([pd.read_csv(p) for p in paths], ignore_index=True)
     dup = df.duplicated(["model", "split_type", "seed", "song_id"]).sum()
@@ -127,7 +130,7 @@ def fmt_summary(s: pd.DataFrame) -> str:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("preds", nargs="+", type=Path)
-    ap.add_argument("--labels", type=Path, default=Path("data/interim/labels.csv"))
+    ap.add_argument("--labels", type=Path, default=Path("data/interim/labels_fixed.csv"))
     ap.add_argument("--compare", nargs=2, action="append", metavar=("A", "B"), default=[])
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--csv", type=Path, default=None, help="write per-fold metrics here")

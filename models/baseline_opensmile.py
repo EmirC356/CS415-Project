@@ -113,7 +113,7 @@ def run(head: str, X: pd.DataFrame, y: pd.DataFrame, folds: pd.DataFrame, split_
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--features", type=Path, default=Path("cache/opensmile/clip_features.parquet"))
-    ap.add_argument("--labels", type=Path, default=Path("data/interim/labels.csv"))
+    ap.add_argument("--labels", type=Path, default=Path("data/interim/labels_fixed.csv"))
     ap.add_argument("--folds", type=Path, default=Path("splits/folds_artist.csv"))
     ap.add_argument("--split-type", default="artist")
     ap.add_argument("--heads", nargs="+", default=["ridge", "svr"])
@@ -121,7 +121,10 @@ def main() -> None:
     args = ap.parse_args()
 
     X = pd.read_parquet(args.features)
-    y = pd.read_csv(args.labels).set_index("song_id")
+    raw = pd.read_csv(args.labels)
+    if "va_swap_fixed" not in raw.columns:
+        raise SystemExit(f"{args.labels}: not the corrected label file; build it with data/audit/check_va_swap.py --fix")
+    y = raw.set_index("song_id")
     folds = pd.read_csv(args.folds).sort_values("song_id").reset_index(drop=True)
     assert set(folds.song_id) <= set(X.index) and set(folds.song_id) <= set(y.index)
     for head in args.heads:
