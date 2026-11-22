@@ -12,7 +12,6 @@ import argparse
 import glob
 import logging
 import os
-import re
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -227,81 +226,100 @@ def aggregate_opensmile_features(
 
 def load_mert_features(
     song_ids: List[int],
-    mert_dir: str = "data/mert_cache",
+    mert_dir: str = "cache/mert95m",
+    layer: int = 7,
+    pool: str = "mean",
 ) -> Tuple[np.ndarray, List[str]]:
-    """Modular loader interface for cached MERT embeddings.
+    """Load cached MERT embeddings as a clip x features matrix.
 
-    Supports:
-    1. Consolidated file: data/mert_cache/mert_embeddings.parquet / .pt / .npy
-    2. Per-song cache: data/mert_cache/{song_id}.pt or {song_id}.npy
+    Matches `features/extract_mert.py`, which writes one `{song_id}.npy` per clip
+    with shape (n_windows, 13, 768): 13 hidden states, frames mean-pooled inside
+    each window. This loader takes one layer, pools the windows across time
+    (the contract keeps pooling in model code, not in the cache) and returns
+    (N, 768).
+
+    Args:
+        layer: index into the 13 hidden states (0 = CNN output, 12 = last layer).
+        pool: "mean" or "std" over windows.
     """
-    logger.info("Loading MERT features for %d songs from %s", len(song_ids), mert_dir)
+    if not 0 <= layer <= 12:
+        raise ValueError(f"layer must be 0-12, got {layer}")
+    if pool not in ("mean", "std"):
+        raise ValueError(f"pool must be 'mean' or 'std', got {pool!r}")
 
-    # Check for consolidated parquet
-    parquet_path = os.path.join(mert_dir, "mert_embeddings.parquet")
-    if os.path.isfile(parquet_path):
-        df_mert = pd.read_parquet(parquet_path)
-        if "song_id" in df_mert.columns:
-            df_mert = df_mert.set_index("song_id")
-        df_mert = df_mert.loc[song_ids]
-        feature_names = df_mert.columns.tolist()
-        return df_mert.to_numpy(dtype=np.float32), feature_names
+    logger.info("Loading MERT features for %d songs from %s (layer %d, %s-pooled)", len(song_ids), mert_dir, layer, pool)
 
-    # Check for consolidated PyTorch / NumPy file
-    pt_path = os.path.join(mert_dir, "mert_embeddings.pt")
-    if os.path.isfile(pt_path):
-        import torch
+    vectors = []
+    for sid in song_ids:
+        path = os.path.join(mert_dir, f"{sid}.npy")
+        if not os.path.isfile(path):
+            raise FileNotFoundError(
+                f"MERT embedding for song_id {sid} not found at '{path}'. "
+                f"Run features/extract_mert.py --out {mert_dir} first."
+            )
+        emb = np.load(path)  # (n_windows, 13, 768)
+        if emb.ndim != 3 or emb.shape[1] != 13 or emb.shape[2] != 768:
+            raise ValueError(f"{path}: expected (n_windows, 13, 768), got {emb.shape}")
+        per_window = emb[:, layer, :].astype(np.float32)
+        vectors.append(per_window.mean(axis=0) if pool == "mean" else per_window.std(axis=0))
 
-        data = torch.load(pt_path, map_location="cpu")
-        if isinstance(data, dict):
-            # Keyed by song_id
-            vectors = []
-            for sid in song_ids:
-                if sid not in data and str(sid) not in data:
-                    raise KeyError(f"Song ID {sid} missing from {pt_path}")
-                val = data.get(sid, data.get(str(sid)))
-                if hasattr(val, "numpy"):
-                    val = val.numpy()
-                vectors.append(val.flatten())
-            X = np.vstack(vectors).astype(np.float32)
-            feature_names = [f"mert_dim_{i}" for i in range(X.shape[1])]
-            return X, feature_names
+    X = np.vstack(vectors).astype(np.float32)
+    feature_names = [f"mert_l{layer}_{pool}_{i}" for i in range(X.shape[1])]
+    return X, feature_names
 
-    # Check for per-song files
-    if os.path.isdir(mert_dir):
-        vectors = []
-        dim = None
-        for sid in song_ids:
-            pt_f = os.path.join(mert_dir, f"{sid}.pt")
-            npy_f = os.path.join(mert_dir, f"{sid}.npy")
-            if os.path.isfile(pt_f):
-                import torch
 
-                t = torch.load(pt_f, map_location="cpu")
-                vec = t.numpy().flatten()
-            elif os.path.isfile(npy_f):
-                vec = np.load(npy_f).flatten()
-            else:
-                raise FileNotFoundError(
-                    f"MERT representation for song_id {sid} not found in '{mert_dir}' (checked {sid}.pt, {sid}.npy)"
-                )
-            if dim is None:
-                dim = len(vec)
-            vectors.append(vec)
+LABELS_PATH = "data/interim/labels_fixed.csv"
+OPENSMILE_CACHE = "cache/opensmile/clip_features.parquet"
 
-        X = np.vstack(vectors).astype(np.float32)
-        feature_names = [f"mert_dim_{i}" for i in range(X.shape[1])]
-        return X, feature_names
 
-    raise FileNotFoundError(
-        f"MERT feature directory or cache '{mert_dir}' not found. Please provide cached embeddings."
-    )
+def load_targets(path: str = LABELS_PATH) -> pd.DataFrame:
+    """Corrected static targets (2013 V/A swap fixed), rescaled to [-1, 1].
+
+    Built by data/audit/audit_deam.py + data/audit/check_va_swap.py --fix.
+    Columns: song_id, valence_mean, arousal_mean, valence_std, arousal_std
+    (listener sd s/4), valence_std_adj, arousal_std_adj (rater bias/scale
+    adjusted sd), n_raters, batch.
+    """
+    if not os.path.isfile(path):
+        raise FileNotFoundError(
+            f"{path} not found. Build it with data/audit/audit_deam.py and "
+            "data/audit/check_va_swap.py --fix (see docs/baseline_notes_efe.md)."
+        )
+    df = pd.read_csv(path)
+    if "va_swap_fixed" not in df.columns:
+        raise ValueError(f"{path} lacks the va_swap_fixed flag: it is not the corrected label file.")
+    out = pd.DataFrame({
+        "song_id": df["song_id"].astype(int),
+        "valence_mean": df["mu_V"],
+        "arousal_mean": df["mu_A"],
+        "valence_std": df["s_V"],
+        "arousal_std": df["s_A"],
+        "valence_std_adj": df["s_V_adj"],
+        "arousal_std_adj": df["s_A_adj"],
+        "n_raters": df["n_raters"],
+        "batch": df["batch"],
+    })
+    return out.sort_values("song_id").reset_index(drop=True)
+
+
+def load_predictions(path: str) -> pd.DataFrame:
+    """Read a prediction file in either the contract format (results/predictions/,
+    columns fold_id, mu_V, mu_A, sigma_V, sigma_A) or the prototype format
+    (outputs/, columns fold, mu_v, mu_a, sigma_v, sigma_a); return the prototype names."""
+    df = pd.read_csv(path)
+    return df.rename(columns={"fold_id": "fold", "mu_V": "mu_v", "mu_A": "mu_a",
+                              "sigma_V": "sigma_v", "sigma_A": "sigma_a"})
 
 
 def load_dataset(
     feature_type: str = "opensmile",
     data_dir: str = "data",
     splits_path: Optional[str] = None,
+    mert_dir: str = "cache/mert95m",
+    mert_layer: int = 7,
+    mert_pool: str = "mean",
+    targets_path: str = LABELS_PATH,
+    opensmile_path: str = OPENSMILE_CACHE,
 ) -> Dict[str, Union[np.ndarray, List[str], pd.DataFrame]]:
     """Unified loader providing aligned feature matrix X, targets y_mean, y_std, and song_ids.
 
@@ -315,34 +333,23 @@ def load_dataset(
             - 'splits': pd.DataFrame with song_id and fold (if splits_path provided or found)
             - 'df_targets': pd.DataFrame
     """
-    targets_path = os.path.join(data_dir, "processed_targets.csv")
-    if not os.path.isfile(targets_path):
-        logger.info("%s not found; generating targets...", targets_path)
-        preprocess_static_targets(output_path=targets_path, data_dir=data_dir)
-
-    df_targets = pd.read_csv(targets_path)
+    df_targets = load_targets(targets_path)
     target_song_ids = df_targets["song_id"].tolist()
 
     if feature_type.lower() == "opensmile":
-        parquet_path = os.path.join(data_dir, "opensmile_aggregated.parquet")
-        if not os.path.isfile(parquet_path):
-            logger.info("%s not found; aggregating openSMILE features...", parquet_path)
-            aggregate_opensmile_features(
-                output_path=parquet_path,
-                target_song_ids=target_song_ids,
-                data_dir=data_dir,
+        if not os.path.isfile(opensmile_path):
+            raise FileNotFoundError(
+                f"{opensmile_path} not found. Build it with features/aggregate_opensmile.py "
+                "--labels data/interim/labels_fixed.csv --metadata-2013 data/metadata/metadata_2013.csv"
             )
-
-        df_feat = pd.read_parquet(parquet_path)
-        # Ensure alignment with targets
-        df_feat = df_feat.set_index("song_id").loc[target_song_ids].reset_index()
-        feature_cols = [c for c in df_feat.columns if c != "song_id"]
-        X = df_feat[feature_cols].to_numpy(dtype=np.float32)
-        feature_names = feature_cols
+        df_feat = pd.read_parquet(opensmile_path).loc[target_song_ids]
+        X = df_feat.to_numpy(dtype=np.float32)
+        feature_names = df_feat.columns.tolist()
 
     elif feature_type.lower() == "mert":
-        mert_dir = os.path.join(data_dir, "mert_cache")
-        X, feature_names = load_mert_features(target_song_ids, mert_dir=mert_dir)
+        X, feature_names = load_mert_features(
+            target_song_ids, mert_dir=mert_dir, layer=mert_layer, pool=mert_pool
+        )
 
     else:
         raise ValueError(f"Unknown feature_type: '{feature_type}'. Choose 'opensmile' or 'mert'.")
@@ -351,12 +358,12 @@ def load_dataset(
     y_std = df_targets[["valence_std", "arousal_std"]].to_numpy(dtype=np.float32)
     song_ids = df_targets["song_id"].to_numpy(dtype=np.int64)
 
-    # Look for splits.csv
+    # Look for splits file (official contract: splits/folds_artist.csv)
     splits_df = None
     splits_candidates = [
         splits_path,
-        os.path.join(data_dir, "splits.csv"),
-        "splits.csv",
+        "splits/folds_artist.csv",
+        os.path.join(data_dir, "folds_artist.csv"),
     ]
     for sp in splits_candidates:
         if sp and os.path.isfile(sp):
@@ -377,54 +384,12 @@ def load_dataset(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Preprocess static targets and aggregate openSMILE features.")
-    parser.add_argument("--data-dir", default="data", help="Root data directory (default: 'data')")
-    parser.add_argument("--force", action="store_true", help="Force re-generation of targets and features")
-    parser.add_argument("--workers", type=int, default=8, help="Number of parallel workers for aggregation")
+    parser = argparse.ArgumentParser(description="Sanity-check the corrected inputs used by src/train.py.")
+    parser.add_argument("--labels", default=LABELS_PATH)
+    parser.add_argument("--features", default=OPENSMILE_CACHE)
     args = parser.parse_args()
-
-    targets_path = os.path.join(args.data_dir, "processed_targets.csv")
-    if args.force or not os.path.isfile(targets_path):
-        df_targets = preprocess_static_targets(output_path=targets_path, data_dir=args.data_dir)
-    else:
-        df_targets = pd.read_csv(targets_path)
-        logger.info("Existing targets loaded from %s (Shape: %s)", targets_path, df_targets.shape)
-
-    features_path = os.path.join(args.data_dir, "opensmile_aggregated.parquet")
-    if args.force or not os.path.isfile(features_path):
-        df_features = aggregate_opensmile_features(
-            output_path=features_path,
-            target_song_ids=df_targets["song_id"].tolist(),
-            data_dir=args.data_dir,
-            max_workers=args.workers,
-        )
-    else:
-        df_features = pd.read_parquet(features_path)
-        logger.info("Existing features loaded from %s (Shape: %s)", features_path, df_features.shape)
-
-    # Validation
-    X = df_features[[c for c in df_features.columns if c != "song_id"]].to_numpy()
-    y = df_targets[["valence_mean", "arousal_mean"]].to_numpy()
-
-    nan_count_X = np.isnan(X).sum()
-    inf_count_X = np.isinf(X).sum()
-    nan_count_y = np.isnan(y).sum()
-    inf_count_y = np.isinf(y).sum()
-
-    logger.info("================ DATA PIPELINE VERIFICATION ================")
-    logger.info("Targets shape: %s (Expected: (1744, 5))", df_targets.shape)
-    logger.info("Features shape: %s (Expected: (1744, 521))", df_features.shape)
-    logger.info("Feature Matrix X shape: %s (Expected: (1744, 520))", X.shape)
-    logger.info("X NaNs: %d | Infs: %d", nan_count_X, inf_count_X)
-    logger.info("y NaNs: %d | Infs: %d", nan_count_y, inf_count_y)
-    logger.info("Valence mean range: [%.4f, %.4f]", y[:, 0].min(), y[:, 0].max())
-    logger.info("Arousal mean range: [%.4f, %.4f]", y[:, 1].min(), y[:, 1].max())
-
-    assert df_targets.shape == (1744, 5), f"Targets shape mismatch: {df_targets.shape}"
-    assert df_features.shape == (1744, 521), f"Features shape mismatch: {df_features.shape}"
-    assert nan_count_X == 0 and inf_count_X == 0, "Feature matrix contains NaN or Inf!"
-    assert nan_count_y == 0 and inf_count_y == 0, "Targets contain NaN or Inf!"
-    logger.info("ALL VERIFICATIONS PASSED SUCCESSFULLY!")
+    data = load_dataset(targets_path=args.labels, opensmile_path=args.features)
+    logger.info("X %s, y_mean %s, folds loaded: %s", data["X"].shape, data["y_mean"].shape, data["splits"] is not None)
 
 
 if __name__ == "__main__":

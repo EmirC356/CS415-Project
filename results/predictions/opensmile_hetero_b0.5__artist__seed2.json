@@ -1,0 +1,23 @@
+{
+  "model": "opensmile_hetero_b0.5",
+  "feature_type": "opensmile",
+  "split_type": "artist",
+  "seed": 2,
+  "sklearn": "1.8.0",
+  "torch": "2.15.0+cpu",
+  "epochs_warmup": 15,
+  "epochs_nll": 60,
+  "patience": 10,
+  "lr": 0.001,
+  "weight_decay": 0.0001,
+  "batch_size": 32,
+  "hidden_dim": 128,
+  "dropout": 0.2,
+  "beta": 0.5,
+  "sigma_bounds": "sigma_min=0.01, sigma_max=2*sd(y_train) per dimension",
+  "early_stopping": "plain validation NLL (beta=0)",
+  "near_bound_definition": "within 5% of the sigma range of either bound",
+  "unstable_threshold": 0.05,
+  "unstable_folds": [],
+  "near_bound_share_mean": 0.0
+}

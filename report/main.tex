@@ -26,13 +26,16 @@
 \begin{abstract}
 We predict static valence and arousal for the 1{,}744 clips of DEAM. Following
 the instructor's feedback, this report covers the data audit, an artist-grouped
-10-fold protocol and the openSMILE baseline. The audit revealed two
+10-fold protocol, the openSMILE baseline and a frozen MERT comparison. The audit revealed two
 undocumented defects in the 2013 part of DEAM: swapped static valence/arousal
 labels and openSMILE features computed on the full song instead of the rated
 excerpt. After correcting both, an SVR reaches $\R=0.38$ (valence) and $0.69$
 (arousal) on artist-disjoint folds. We also show that per-clip listener
-disagreement is almost unmeasurable with 10 raters, which clarifies what a
-variance head can represent. MERT and the heteroscedastic head are in progress.
+disagreement is barely measurable with 10 raters, which clarifies what a
+variance head can represent. A heteroscedastic head on openSMILE matches the
+constant-variance reference only as a seed ensemble, and its learned variance
+adds a small error signal for valence. With the same ridge head, MERT
+raises $\R$ to $0.56$/$0.75$ (valence/arousal), better in 10 of 10 folds.
 \end{abstract}
 
 %======================================================================
@@ -131,7 +134,7 @@ prediction files in a common format.
 
 \textbf{Representations.} openSMILE: mean and standard deviation of DEAM's 260
 frame-level descriptors over the excerpt (520-d). MERT-v1-95M: nine 5\,s
-windows at 24\,kHz, all 13 layers cached, layer chosen on validation.
+windows at 24\,kHz (eight for the 9 clips shorter than 45\,s), all 13 layers cached, layer chosen on validation.
 
 \textbf{Variance stability.} The heteroscedastic MLP bounds $\sigma$ softly,
 $\sigma=\sigma_{\min}+(\sigma_{\max}-\sigma_{\min})\,\mathrm{sigmoid}(z)$ with
@@ -228,6 +231,14 @@ $0.79/0.85$; averaging noise alone explains about 35\,\% (valence) and
 clear room to help, especially for valence, whose predictions are also
 compressed towards the centre (Fig.~\ref{fig:scatter}).
 
+\textbf{MERT ridge.} With the same ridge head and folds, MERT-v1-95M reaches
+$\R=0.56\pm0.07$/$0.75\pm0.03$ (Table~\ref{tab:baseline}), versus $0.37$/$0.67$ for openSMILE ridge:
+$\Delta\R=+0.191$/$+0.083$, better in 10/10 folds on both dimensions (Wilcoxon $p=0.002$);
+against openSMILE SVR, $+0.185$/$+0.061$, again 10/10. Layer and $\alpha$ were chosen jointly
+per fold and dimension on validation (layers 3--8, mostly 6--7); this search (13 layers
+$\times$ 25 $\alpha$) is wider than openSMILE's $\alpha$-only search. Random folds raise
+MERT $\R$ by 0.027/0.011, similar to openSMILE ridge (0.023/0.006).
+
 \begin{figure}[t]
 \centering
 \includegraphics[width=0.92\columnwidth]{fig_baseline_scatter}
@@ -237,38 +248,92 @@ compressed towards the centre (Fig.~\ref{fig:scatter}).
 
 \textbf{Listener disagreement.} Split-half reliability (500 random 5/5 rater
 splits, corrected to 10 raters) is high for the mean rating ($0.79$/$0.85$)
-but near zero for the listener standard deviation $s$ ($0.00$/$0.05$; $0.21$/$0.14$
-after removing rater bias and scale). Moreover, model error is
+but near zero for the listener standard deviation $s$ ($0.00$/$0.04$) and low ($0.21$/$0.13$)
+after removing rater bias and scale. Moreover, model error is
 \emph{negatively} related to $s$ (Spearman $-0.15$/$-0.10$, $p<10^{-4}$;
 Fig.~\ref{fig:dis}b). Clips near the scale centre have more disagreement
 (on a bounded scale a mean near the ends forces a small spread;
 $\rho(|\mu|,s)=-0.23/-0.30$), while extreme clips are hardest to predict
 because regression shrinks towards the centre. With the rater-adjusted $s$ the
 correlation vanishes ($0.00/-0.03$). A $\sigma$ that tracks the model's error, as
-Eq.~\ref{eq:sigma} implies, therefore cannot be expected to track
-disagreement, which explains the finding of~\cite{watcharasupat2025}.
+Eq.~\ref{eq:sigma} implies, therefore can track
+disagreement only weakly, which is consistent with the finding of~\cite{watcharasupat2025};
+the main limit is the low reliability of $s$.
 
 
 
-\textbf{Uncertainty reference and work in progress.} The constant-$\sigma$
+\textbf{Heteroscedastic head on openSMILE.} The constant-$\sigma$
 reference is already calibrated on average (PICP$_{68}\approx0.68$,
 PICP$_{95}\approx0.95$; NLL $-0.11$/$-0.24$ for ridge) and by construction has
 $\rho(\sigma,|e|)=0$, so the heteroscedastic head must improve NLL and
-error ranking to be useful. A prototype head runs end-to-end but was trained
-on the uncorrected labels, so its results are not reported. The MERT
-extraction script is ready; the cache was not complete at the time of writing.
+error ranking to be useful. We trained it on the corrected labels and the
+artist-grouped folds with the stabilisation of Sec.~IV ($\beta$-NLL, $\beta\in\{0,0.5\}$,
+5 seeds), and score it with the same shared script as the baselines
+(Table~\ref{tab:hetero}, Figs.~\ref{fig:cal}--\ref{fig:sig}). Variance was stable:
+in none of the 10 runs (2 values of $\beta$, 5 seeds) did a fold have more than
+5\,\% of its $\sigma$ near either bound (in fact 0\,\%).
+
+A \emph{single} head does not beat the reference. At $\beta=0$ it reaches
+$\R=0.33\pm0.01$/$0.65\pm0.00$ (mean $\pm$ SD over seeds), below ridge, and it
+is over-confident (intervals too narrow: PICP$_{95}=0.92$/$0.93$, NLL $-0.06$/$-0.19$ vs.\ $-0.11$/$-0.24$).
+$\beta=0.5$ is worse still ($\R=0.29$/$0.63$, NLL $0.02$/$-0.12$), i.e.\ in
+our setting it did not improve accuracy. The \emph{5-seed ensemble} (mean of
+the member means; variance = mean member variance plus variance of the means)
+closes the gap: $\R=0.375$/$0.679$, PICP$_{68}=0.66$/$0.70$,
+PICP$_{95}=0.95$/$0.96$, NLL $-0.135$/$-0.267$. Against the ridge reference its NLL is
+better on valence in 8 of 10 folds (Wilcoxon $p=0.014$) and not significantly
+on arousal ($p=0.38$); against the SVR reference it is better on valence (9/10 folds,
+$p=0.010$) and equal on arousal.
+Its $\sigma$ ranks errors: $\rho(\sigma,|e|)=0.17$/$0.14$ (Fig.~\ref{fig:sig}), whereas the constant reference has $0$.
+
+Ensembling alone also improves the mean and the interval, so we separate
+the two effects. As a control we gave the same ensemble mean the best possible constant
+$\sigma$ per fold (the test RMSE itself, which favours the control). On valence the
+learned $\sigma$ still lowers NLL by $0.017$ (8/10 folds, $p=0.014$), which is
+most of the $0.026$ gain over ridge. On arousal the learned $\sigma$ adds only
+$0.008$ ($p=0.32$), so the arousal improvement comes from ensembling, not from
+heteroscedasticity. The ensemble's
+valence NLL gain over both references survives Holm correction over the four
+comparisons ($p=0.041/0.039$; arousal $p=0.75$). Most of it is due to the learned
+$\sigma$ (oracle control, $p=0.014$ uncorrected), so the learned variance carries a
+suggestive error signal for valence and none we can demonstrate for arousal. With listener spread it is only weakly related
+($\rho(\sigma,s)=0.06$/$0.07$; $0.11$/$0.08$ with rater-adjusted $s$), as expected from Eq.~\ref{eq:sigma}
+and the low reliability of $s$. These results use openSMILE only. The MLP settings were fixed, not tuned on validation
+(hidden width 128, dropout 0.2, learning rate $10^{-3}$, weight decay $10^{-4}$, 15 warm-up
+and up to 60 NLL epochs, patience 10, batch size 32), so its comparison with the tuned ridge reference
+mixes head and tuning.
+
+\input{tables/tab_hetero}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.92\columnwidth]{fig_hetero_calibration}
+\caption{Reliability of the predictive intervals on pooled out-of-fold predictions
+(seed ensembles for the heteroscedastic heads). The dotted line is perfect calibration.}
+\label{fig:cal}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.92\columnwidth]{fig_hetero_sigma}
+\caption{Mean absolute error per decile of predicted $\sigma$. A constant-$\sigma$
+model is flat by construction (dashed: its overall mean $|e|$ is the reference level).}
+\label{fig:sig}
+\end{figure}
 
 %======================================================================
 \section{Summary and Next Steps}
 %======================================================================
 We audited the data, built and verified an artist-grouped 10-fold protocol,
 corrected two defects in DEAM 2013, established the openSMILE baseline
-($\R=0.38/0.69$, CCC $=0.57/0.82$), quantified the artist effect, and showed
+($\R=0.38/0.69$, CCC $=0.57/0.82$), showed that MERT with the same ridge head reaches $\R=0.56/0.75$, quantified the artist effect, and showed
 that listener disagreement is barely measurable, which fixes how $\sigma$ will
-be interpreted. Next we will (1) train ridge and an MLP on MERT and compare
-them fold by fold with openSMILE (H1); (2) rerun the heteroscedastic head on
-corrected labels and report calibration, $\rho(\sigma,|e|)$, NLL against the
-constant-$\sigma$ reference and stability logs, adding a seed ensemble; and
+be interpreted. On openSMILE, the heteroscedastic head is stable, but a single
+head is worse than the constant-$\sigma$ reference; a 5-seed ensemble matches it on
+accuracy, is calibrated, and has a lower NLL on valence (owed mostly to the learned $\sigma$; on
+arousal the gain comes from ensembling), while its $\sigma$ ranks errors only weakly
+($\rho(\sigma,|e|)\approx0.15$). Next we will (1) train an MLP on MERT and repeat the heteroscedastic head on MERT;
+(2) check whether the valence gain survives on MERT; and
 (3) then add PANNs and a head trained on individual ratings.
 
 \bibliographystyle{IEEEtran}

@@ -27,6 +27,8 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from src.data import load_predictions, load_targets
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
@@ -120,7 +122,7 @@ def plot_reliability_diagram(
 
 def evaluate_predictions(
     preds_path: str,
-    targets_path: str = "data/processed_targets.csv",
+    targets_path: str = "data/interim/labels_fixed.csv",
     output_report_path: str | None = None,
     plot_path: str = "outputs/reliability_diagram.png",
 ) -> str:
@@ -130,8 +132,8 @@ def evaluate_predictions(
     if not os.path.isfile(targets_path):
         raise FileNotFoundError(f"Targets file not found: {targets_path}")
 
-    df_preds = pd.read_csv(preds_path)
-    df_targets = pd.read_csv(targets_path)
+    df_preds = load_predictions(preds_path)
+    df_targets = load_targets(targets_path)
 
     # Merge on song_id
     df = df_preds.merge(df_targets, on="song_id", how="inner")
@@ -309,8 +311,8 @@ def evaluate_predictions(
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate 10-fold cross-validation predictions.")
-    parser.add_argument("--preds", required=True, help="Path to predictions CSV (e.g. outputs/preds_opensmile_heteroscedastic_mlp.csv)")
-    parser.add_argument("--targets", default="data/processed_targets.csv", help="Path to processed targets CSV")
+    parser.add_argument("--preds", required=True, help="Path to predictions CSV (e.g. results/predictions/opensmile_hetero_b0__artist__seed0.csv)")
+    parser.add_argument("--targets", default="data/interim/labels_fixed.csv", help="Path to processed targets CSV")
     parser.add_argument("--report", default=None, help="Path to save markdown report (default: outputs/eval_<tag>.md)")
     parser.add_argument("--plot", default="outputs/reliability_diagram.png", help="Path to save reliability diagram")
     args = parser.parse_args()
