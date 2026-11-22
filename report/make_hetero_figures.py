@@ -147,7 +147,7 @@ def table_numbers(df: pd.DataFrame, labels: pd.DataFrame, order: list[tuple[str,
             rho_sa = stats.spearmanr(s, lab.loc[g.song_id, f"s_{d}_adj"].to_numpy())[0] if not np.isnan(s).any() else np.nan
             fmt = lambda v: "--" if np.isnan(v) else f"{v:.2f}"
             if key == "ref" or model in (REF, REF2):
-                rho_cell, rs_cell = "0 (const.)", "0 (const.)"
+                rho_cell, rs_cell = "$\\approx$0", "$\\approx$0"  # constant within each fold
             else:
                 rho_cell, rs_cell = fmt(rho), fmt(rho_s)
             rows.append((LABEL.get(key, LABEL.get(model, model)), d, cell("R2"), cell("PICP68"), cell("PICP95"),
@@ -163,7 +163,7 @@ def write_table(rows, n_seeds: int, ens: bool):
              r"\caption{Heteroscedastic head vs.\ the constant-$\sigma$ reference on openSMILE, artist-grouped folds"
              + (rf" (seed ensemble of {n_seeds})" if ens else "")
              + r". Mean $\pm$ SD over the 10 test folds; $\rho$ is Spearman on all pooled out-of-fold predictions. "
-             r"Ideal PICP is $0.68$/$0.95$.}", r"\label{tab:hetero}", r"\footnotesize",
+             r"Ideal PICP is $0.68$/$0.95$; for the references $\rho\approx0$ because $\sigma$ is constant within each fold.}", r"\label{tab:hetero}", r"\footnotesize",
              r"\setlength{\tabcolsep}{2.5pt}",
              r"\begin{tabular}{@{}llcccccc@{}}", r"\toprule",
              r"Model & D & $R^2\uparrow$ & PICP$_{68}$ & PICP$_{95}$ & NLL$\downarrow$ & $\rho(\sigma,|e|)$ & $\rho(\sigma,s)$ \\",

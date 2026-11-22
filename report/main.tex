@@ -276,12 +276,14 @@ on arousal ($p=0.38$); against the SVR reference it is better on valence (9/10 f
 $p=0.010$) and equal on arousal.
 Its $\sigma$ ranks errors: $\rho(\sigma,|e|)=0.17$/$0.14$ (Fig.~\ref{fig:sig}), whereas the constant reference has $0$.
 
-Much of this gain, however, comes from ensembling, not from heteroscedasticity.
-As a control we gave the same ensemble mean the best possible constant
-$\sigma$ per fold (the test RMSE itself, which favours the control). The
-heteroscedastic $\sigma$ still lowers NLL on valence by $0.017$ (8/10 folds,
-$p=0.014$) but not significantly on arousal ($0.008$, $p=0.32$). So the learned
-variance carries a small but real error signal for valence and none we can
+Ensembling alone also improves the mean and the interval, so we separate
+the two effects. As a control we gave the same ensemble mean the best possible constant
+$\sigma$ per fold (the test RMSE itself, which favours the control). On valence the
+learned $\sigma$ still lowers NLL by $0.017$ (8/10 folds, $p=0.014$), which is
+most of the $0.026$ gain over ridge. On arousal the learned $\sigma$ adds only
+$0.008$ ($p=0.32$), so the arousal improvement comes from ensembling, not from
+heteroscedasticity. The learned
+variance therefore carries a small but real error signal for valence and none we can
 demonstrate for arousal. With listener spread it is only weakly related
 ($\rho(\sigma,s)=0.06$/$0.07$; $0.07$/$0.12$ with rater-adjusted $s$), as expected from Eq.~\ref{eq:sigma}
 and the near-zero reliability of $s$. These results use openSMILE only; the MERT
@@ -314,8 +316,8 @@ corrected two defects in DEAM 2013, established the openSMILE baseline
 that listener disagreement is barely measurable, which fixes how $\sigma$ will
 be interpreted. On openSMILE, the heteroscedastic head is stable, but a single
 head is worse than the constant-$\sigma$ reference; a 5-seed ensemble matches it on
-accuracy, is calibrated, and has a lower NLL on valence, partly because of the
-ensembling itself, while its $\sigma$ ranks errors only weakly
+accuracy, is calibrated, and has a lower NLL on valence (owed mostly to the learned $\sigma$; on
+arousal the gain comes from ensembling), while its $\sigma$ ranks errors only weakly
 ($\rho(\sigma,|e|)\approx0.15$). Next we will (1) train ridge and an MLP on MERT and compare
 them fold by fold with openSMILE (H1), and repeat the heteroscedastic head on MERT;
 (2) check whether the valence gain survives on MERT; and

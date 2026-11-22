@@ -1,6 +1,6 @@
 \begin{table}[t]
 \centering
-\caption{Heteroscedastic head vs.\ the constant-$\sigma$ reference on openSMILE, artist-grouped folds (seed ensemble of 5). Mean $\pm$ SD over the 10 test folds; $\rho$ is Spearman on all pooled out-of-fold predictions. Ideal PICP is $0.68$/$0.95$.}
+\caption{Heteroscedastic head vs.\ the constant-$\sigma$ reference on openSMILE, artist-grouped folds (seed ensemble of 5). Mean $\pm$ SD over the 10 test folds; $\rho$ is Spearman on all pooled out-of-fold predictions. Ideal PICP is $0.68$/$0.95$; for the references $\rho\approx0$ because $\sigma$ is constant within each fold.}
 \label{tab:hetero}
 \footnotesize
 \setlength{\tabcolsep}{2.5pt}
@@ -8,11 +8,11 @@
 \toprule
 Model & D & $R^2\uparrow$ & PICP$_{68}$ & PICP$_{95}$ & NLL$\downarrow$ & $\rho(\sigma,|e|)$ & $\rho(\sigma,s)$ \\
 \midrule
-Ridge, const. $\sigma$ & V & 0.372$\pm$0.079 & 0.673$\pm$0.051 & 0.949$\pm$0.022 & $-$0.109$\pm$0.078 & 0 (const.) & 0 (const.) \\
- & A & 0.671$\pm$0.061 & 0.680$\pm$0.058 & 0.949$\pm$0.025 & $-$0.236$\pm$0.101 & 0 (const.) & 0 (const.) \\
+Ridge, const. $\sigma$ & V & 0.372$\pm$0.079 & 0.673$\pm$0.051 & 0.949$\pm$0.022 & $-$0.109$\pm$0.078 & $\approx$0 & $\approx$0 \\
+ & A & 0.671$\pm$0.061 & 0.680$\pm$0.058 & 0.949$\pm$0.025 & $-$0.236$\pm$0.101 & $\approx$0 & $\approx$0 \\
 \midrule
-SVR, const. $\sigma$ & V & 0.379$\pm$0.075 & 0.673$\pm$0.034 & 0.952$\pm$0.018 & $-$0.116$\pm$0.058 & 0 (const.) & 0 (const.) \\
- & A & 0.693$\pm$0.045 & 0.668$\pm$0.061 & 0.943$\pm$0.026 & $-$0.270$\pm$0.083 & 0 (const.) & 0 (const.) \\
+SVR, const. $\sigma$ & V & 0.379$\pm$0.075 & 0.673$\pm$0.034 & 0.952$\pm$0.018 & $-$0.116$\pm$0.058 & $\approx$0 & $\approx$0 \\
+ & A & 0.693$\pm$0.045 & 0.668$\pm$0.061 & 0.943$\pm$0.026 & $-$0.270$\pm$0.083 & $\approx$0 & $\approx$0 \\
 \midrule
 Hetero. MLP, $\beta{=}0$ & V & 0.375$\pm$0.079 & 0.664$\pm$0.041 & 0.948$\pm$0.017 & $-$0.135$\pm$0.056 & 0.17 & 0.06 \\
  & A & 0.679$\pm$0.039 & 0.700$\pm$0.039 & 0.962$\pm$0.019 & $-$0.267$\pm$0.046 & 0.14 & 0.07 \\
