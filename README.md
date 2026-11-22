@@ -66,8 +66,8 @@ Then follow [`data/README.md`](data/README.md) to download DEAM.
 
 ---
 
-## Legacy prototype (`src/`, pre-contract)
+## Legacy prototype (pre-contract)
 
-> **Not the contract protocol.** `src/`, `outputs/`, the root `splits.csv` and `analysis_report.ipynb` are the pre-contract prototype (`GroupKFold`, seed 42, uncorrected labels). Their numbers are **not comparable** to the contract protocol in [`docs/contracts.md`](docs/contracts.md) and must not be cited in the report.
+> **Not the contract protocol.** The prototype files are `outputs/`, the root `splits.csv`, `analysis_report.ipynb`, `src/make_splits.py` and the prototype `src/evaluate.py` / `src/visualize.py` (`GroupKFold`, seed 42, uncorrected labels). Their numbers are **not comparable** to the contract protocol in [`docs/contracts.md`](docs/contracts.md) and must not be cited in the report.
 >
-> The heteroscedastic head on the contract protocol lives in `src/train.py` on branch `cem/hetero-corrected-labels` (to be merged).
+> `src/train.py`, `src/data.py` and `src/models.py` are being updated to the contract protocol on branch `cem/hetero-corrected-labels`; the report's heteroscedastic results come from that version.
